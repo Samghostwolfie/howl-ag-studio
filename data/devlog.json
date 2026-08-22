@@ -1,0 +1,100 @@
+[
+  {
+    "id": "d_1787132570045",
+    "gameId": "g_1787089749006",
+    "title": "The beginning of Home",
+    "date": "2026-05-01",
+    "author": "",
+    "body": "Helmet hud is implemented, pistol system, recoil system,Simple ai system for the enemies, Voice comms and dynamic crosshair.\r\nNote pistol is not done it at 18%.",
+    "imageLinks": [],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1cPBBANVHGma8hFCpjMTbcregzmhIZ4dm/view?usp=drive_link"
+    ],
+    "published": true,
+    "gameTitle": "Home",
+    "createdAt": "2026-08-19T09:42:50.045Z",
+    "updatedAt": "2026-08-19T09:45:09.197Z"
+  },
+  {
+    "id": "d_1787133630858",
+    "gameId": "g_1787089749006",
+    "title": "Weapon Updates",
+    "date": "2026-06-19",
+    "author": "",
+    "body": "Weapons have been given ads now so you can aim with a scope (We still deciding if it should be kept in the game or not),grenades have been added.",
+    "imageLinks": [],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1VdgQqfz26KqBpFGWfclCarSKsliF9HXl/view?usp=drive_link"
+    ],
+    "published": true,
+    "gameTitle": "Home",
+    "createdAt": "2026-08-19T10:00:30.858Z",
+    "updatedAt": "2026-08-19T10:01:45.897Z"
+  },
+  {
+    "id": "d_1787133826513",
+    "gameId": "g_1787089749006",
+    "title": "Weapon update 2",
+    "date": "2026-06-27",
+    "author": "",
+    "body": "Grenades no longer have a ui bar.\r\nWhen you pickup weapons it play a  animation ,same for equip and unequip.",
+    "imageLinks": [],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1WRBjwZMimnfx-JpRiq1BV7fG5gWTRSVy/view?usp=sharing"
+    ],
+    "published": true,
+    "gameTitle": "Home",
+    "createdAt": "2026-08-19T10:03:46.513Z",
+    "updatedAt": "2026-08-19T10:03:46.513Z"
+  },
+  {
+    "id": "d_1787134116398",
+    "gameId": "g_1787089749006",
+    "title": "Weapon update 3",
+    "date": "2026-06-30",
+    "author": "",
+    "body": "Dynamic shotgun and ammo count",
+    "imageLinks": [],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1qTnbBCmmy1nrM5xTjZihaL2xxxNK5N1m/view?usp=sharing"
+    ],
+    "published": true,
+    "gameTitle": "Home",
+    "createdAt": "2026-08-19T10:08:36.398Z",
+    "updatedAt": "2026-08-19T10:08:36.398Z"
+  },
+  {
+    "id": "d_1787134462509",
+    "gameId": "g_1787089749006",
+    "title": "Game redesign",
+    "date": "2026-08-19",
+    "author": "",
+    "body": "Since we are targeting a horror game that feels like Doom 3 x Deadspace me and my team had to scrap out a lot from the updates \r\nMantling is intact\r\nweapons have been removed but will be implemented later on\r\nMovement are still the same \r\nAnd we added a wristwatch hologram projector for \"audio log,note log and so on\" as well as a wrist ui to check health,stamina and battery pod. This was inspired from deadspace but redesign to our direction.\r\nthis is not the final look yet even for the prototype",
+    "imageLinks": [],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1Tq4aRPWiKmhgo12Vqztw3jdql79pu1lu/view?usp=drive_link",
+      "https://drive.google.com/file/d/11sjN-M6ew_BofCd_WKC-SkKvQf8Owi4f/view?usp=drive_link",
+      "https://drive.google.com/file/d/1aS8Dur1FknK7rZAvNetMBp2fI6Jid9W8/view?usp=drive_link"
+    ],
+    "published": true,
+    "gameTitle": "Home",
+    "createdAt": "2026-08-19T10:14:22.509Z",
+    "updatedAt": "2026-08-19T10:17:35.722Z"
+  },
+  {
+    "id": "d_1787134903423",
+    "gameId": "g_1787089749006",
+    "title": "Audio log system",
+    "date": "2026-08-19",
+    "author": "",
+    "body": "We have the player interacting with the system to get an audio log and the audio also uses realtime  voice to create the sythentic wave lines.",
+    "imageLinks": [],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1fmNB3bNbpFvhXE5iT8NZIFrmWNEFmjPB/view?usp=sharing"
+    ],
+    "published": true,
+    "gameTitle": "Home",
+    "createdAt": "2026-08-19T10:21:43.423Z",
+    "updatedAt": "2026-08-19T10:21:43.423Z"
+  }
+]

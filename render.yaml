@@ -1,0 +1,24 @@
+# Render reads this file and configures the service for you.
+services:
+  - type: web
+    name: howl-ag-studio
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Generated for you by Render — a long random value you never see.
+      - key: SESSION_SECRET
+        generateValue: true
+      # Set these yourself in the Render dashboard (they are secrets):
+      #   DATABASE_URL   your Neon connection string
+      #   ADMIN_PASSWORD the password for your admin panel
+      #   ADMIN_PATH     e.g. howl-control  (keeps /admin from being found)
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_PATH
+        sync: false

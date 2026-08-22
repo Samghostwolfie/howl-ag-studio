@@ -1,0 +1,97 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <span class="ghost-type" aria-hidden="true">Log</span>
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Behind the scenes</p>
+      <h2><%= activeGame ? activeGame.title + ' devlog' : 'Devlog' %></h2>
+      <p class="lead">
+        <%= activeGame
+            ? 'Every update we have posted about ' + activeGame.title + ', newest first.'
+            : 'Progress, problems and the occasional breakthrough — straight from the desk.' %>
+      </p>
+    </div>
+
+    <% if (gamesWithPosts.length > 1 || activeGame) { %>
+      <div class="devlog-filters">
+        <a href="/devlog" class="filter-chip <%= activeGame ? '' : 'is-active' %>">All projects</a>
+        <% gamesWithPosts.forEach(function (g) { %>
+          <a href="/devlog/game/<%= g.slug %>"
+             class="filter-chip <%= activeGame && activeGame.id === g.id ? 'is-active' : '' %>"><%= g.title %></a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% /* Category cards — pick a project and go straight to its own devlog page. */ %>
+    <% if (!activeGame && gamesWithPosts.length) { %>
+      <div class="cat-grid">
+        <% gamesWithPosts.forEach(function (g) { %>
+          <% var count = entries.filter(function (e) { return e.gameId === g.id; }).length; %>
+          <a class="cat-card" href="/devlog/game/<%= g.slug %>">
+            <span class="cat-card-media">
+              <% if (g.coverImage) { %>
+                <img src="/uploads/covers/<%= g.coverImage %>" alt="" loading="lazy"
+                     style="object-position:<%= g.coverPos %>" />
+              <% } else { %>
+                <span class="media-empty"><%- include('partials/logo', { id: 'cat' + g.id, size: 34 }) %></span>
+              <% } %>
+            </span>
+            <span class="cat-card-body">
+              <span class="badge status-<%= g.status %>"><%= g.statusLabel %></span>
+              <span class="cat-card-title"><%= g.title %></span>
+              <span class="cat-card-count"><%= count %> post<%= count === 1 ? '' : 's' %></span>
+            </span>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (activeGame) { %>
+      <p class="devlog-back-line"><a href="/devlog" class="text-link">&larr; All projects</a></p>
+    <% } %>
+
+    <% if (!entries.length) { %>
+      <p class="muted">No devlog posts yet — they'll appear here as we write them.</p>
+    <% } %>
+
+    <div class="devlog-list">
+      <% entries.forEach(function (e) { %>
+        <article class="devlog-card">
+          <a class="devlog-card-media" href="/devlog/<%= e.id %>">
+            <% if (e.media.length && e.media[0].type === 'image') { %>
+              <img src="<%= e.media[0].src %>" alt="" loading="lazy" />
+            <% } else if (e.media.length) { %>
+              <span class="media-empty devlog-video-flag">
+                <svg width="26" height="30" viewBox="0 0 12 14" fill="currentColor" aria-hidden="true"><path d="M0 0l12 7-12 7z"/></svg>
+              </span>
+            <% } else { %>
+              <span class="media-empty"><%- include('partials/logo', { id: 'dl' + e.id, size: 34 }) %></span>
+            <% } %>
+          </a>
+
+          <div class="devlog-card-body">
+            <div class="devlog-meta">
+              <time datetime="<%= e.dateInput %>"><%= e.dateLabel %></time>
+              <% if (e.gameSlug) { %>
+                <span class="devlog-dot">·</span>
+                <a class="devlog-game" href="/games/<%= e.gameSlug %>"><%= e.gameTitle %></a>
+              <% } %>
+              <% if (e.published === false) { %><span class="badge status-archived">Draft</span><% } %>
+            </div>
+
+            <h3><a href="/devlog/<%= e.id %>"><%= e.title %></a></h3>
+            <p><%= e.excerpt %><%= e.body && e.body.length > 190 ? '…' : '' %></p>
+
+            <div class="devlog-card-foot">
+              <% if (e.author) { %><span class="muted small">by <%= e.author %></span><% } %>
+              <a href="/devlog/<%= e.id %>" class="text-link">Read the post &rarr;</a>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

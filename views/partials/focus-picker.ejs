@@ -1,0 +1,49 @@
+<%
+  // Drag-to-position control for an already-uploaded image.
+  //   src     – the image URL
+  //   prefix  – '' for team photos, 'cover' for game covers (drives the field names)
+  //   focus   – { x, y } current values
+  //   shapes  – [{ label, ratio }] the real crops used on the public site
+  var pfx     = typeof prefix === 'undefined' ? '' : prefix;
+  var fieldX  = pfx ? pfx + 'FocusX' : 'focusX';
+  var fieldY  = pfx ? pfx + 'FocusY' : 'focusY';
+  var f       = focus || { x: 50, y: 50 };
+  var shapes  = typeof shapes === 'undefined' ? [] : shapes;
+  var uid     = 'fp' + Math.random().toString(36).slice(2, 8);
+%>
+<div class="focus-picker" data-focus-picker data-uid="<%= uid %>">
+
+  <div class="focus-picker-main">
+    <div class="focus-stage" data-focus-stage tabindex="0" role="application"
+         aria-label="Drag to choose which part of the image stays visible">
+      <img src="<%= src %>" alt="" draggable="false" />
+      <span class="focus-marker" data-focus-marker
+            style="left:<%= f.x %>%; top:<%= f.y %>%"></span>
+    </div>
+    <p class="hint focus-hint">
+      Drag the marker onto the part that must always stay visible — a face, usually.
+      The previews update as you move it. Arrow keys nudge it.
+    </p>
+    <button type="button" class="btn btn-ghost btn-sm" data-focus-reset>Re-centre</button>
+  </div>
+
+  <% if (shapes.length) { %>
+    <div class="focus-previews">
+      <span class="focus-previews-title">How it will crop</span>
+      <div class="focus-preview-row">
+        <% shapes.forEach(function (s) { %>
+          <div class="focus-preview">
+            <div class="focus-preview-frame<%= s.round ? ' is-round' : '' %>" style="aspect-ratio:<%= s.ratio %>">
+              <img src="<%= src %>" alt="" data-focus-preview
+                   style="object-position:<%= f.x %>% <%= f.y %>%" />
+            </div>
+            <span class="focus-preview-label"><%= s.label %></span>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  <% } %>
+
+  <input type="hidden" name="<%= fieldX %>" value="<%= f.x %>" data-focus-x />
+  <input type="hidden" name="<%= fieldY %>" value="<%= f.y %>" data-focus-y />
+</div>

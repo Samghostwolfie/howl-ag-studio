@@ -1,0 +1,442 @@
+<%- include('partials/header') %>
+
+<%
+  // Everything below comes pre-computed from the server (see normalizeGame in server.js).
+  var media    = game.media || [];
+  var features = (game.features || '').split('\n').map(function (f) { return f.trim(); }).filter(Boolean);
+  var tags     = game.tags || [];
+  var others   = (typeof otherGames !== 'undefined' && otherGames) ? otherGames : [];
+%>
+
+<section class="game-top">
+  <div class="container">
+    <p class="breadcrumb"><a href="/">Home</a> &nbsp;/&nbsp; <a href="/work">Work</a> &nbsp;/&nbsp; <%= game.title %></p>
+    <div class="game-title-row">
+      <h1><%= game.title %></h1>
+      <div class="game-title-meta">
+        <span class="badge status-<%= game.status %>"><%= game.statusLabel %></span>
+        <% if (game.wishlistEnabled) { %><span class="badge badge-wish">Wishlist Open</span><% } %>
+        <% if (game.genre) { %><span class="tag"><%= game.genre %></span><% } %>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="stage" id="trailer">
+  <div class="container stage-grid">
+
+    <!-- ---------- media ---------- -->
+    <div>
+      <div class="media-stage" id="mediaStage">
+        <% if (media.length) { %>
+          <% var first = media[0]; %>
+          <% if (first.type === 'video' && first.mode === 'iframe') { %>
+            <iframe src="<%= first.src %>" title="<%= game.title %> video" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+          <% } else if (first.type === 'video') { %>
+            <video src="<%= first.src %>" controls preload="metadata" <%= first.poster ? 'poster=' + first.poster : '' %>></video>
+          <% } else { %>
+            <img src="<%= first.src %>" alt="<%= game.title %> artwork" />
+          <% } %>
+        <% } else { %>
+          <span class="media-empty"><%- include('partials/logo', { id: 'stage', size: 64 }) %></span>
+        <% } %>
+      </div>
+
+      <% if (media.length > 1) { %>
+        <div class="media-thumbs" id="mediaThumbs">
+          <% media.forEach(function (m, i) { %>
+            <button type="button" class="<%= i === 0 ? 'active' : '' %>"
+                    data-type="<%= m.type %>" data-mode="<%= m.mode %>" data-src="<%= m.src %>"
+                    data-poster="<%= m.poster || '' %>" aria-label="View media <%= i + 1 %>">
+              <% if (m.type === 'video') { %>
+                <% if (m.poster) { %><img src="<%= m.poster %>" alt="" /><% } %>
+                <span class="thumb-video">
+                  <svg width="16" height="18" viewBox="0 0 12 14" fill="currentColor" aria-hidden="true"><path d="M0 0l12 7-12 7z"/></svg>
+                </span>
+              <% } else { %>
+                <img src="<%= m.src %>" alt="" loading="lazy" />
+              <% } %>
+            </button>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <!-- ---------- action band ---------- -->
+      <% if (game.isReleased) { %>
+        <div class="buy-band <%= game.pricingType === 'free' ? 'free' : '' %>">
+          <div class="buy-left">
+            <h4><%= game.pricingType === 'free' ? 'Play it now — on the house' : 'Buy ' + game.title %></h4>
+            <p><%= game.pricingType === 'free' ? 'Free download, no strings attached.' : 'One-time purchase. Yours forever.' %></p>
+          </div>
+          <div class="buy-right">
+            <span class="price-tag <%= game.pricingType === 'free' ? 'free-tag' : '' %>">
+              <%= game.pricingType === 'free' ? 'FREE' : '$' + Number(game.price).toFixed(2) %>
+            </span>
+            <a href="/games/<%= game.slug %>/buy" class="btn btn-primary btn-lg">
+              <%= game.pricingType === 'free' ? 'Download now' : 'Buy now' %>
+            </a>
+          </div>
+        </div>
+      <% } else if (game.isDemo) { %>
+        <div class="buy-band free">
+          <div class="buy-left">
+            <h4>Try the demo</h4>
+            <p>A playable slice while the full game is still in development.</p>
+          </div>
+          <div class="buy-right">
+            <span class="price-tag free-tag">DEMO</span>
+            <a href="/games/<%= game.slug %>/buy" class="btn btn-primary btn-lg">Play the demo</a>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="buy-band dev">
+          <div class="buy-left">
+            <h4><%= game.status === 'prototype' ? 'Prototype in progress' : 'Currently in development' %></h4>
+            <p><%= game.wishlistEnabled
+                  ? 'Not out yet — wishlist it and we’ll tell you the moment it is.'
+                  : 'Not available yet. Follow the studio for updates.' %></p>
+          </div>
+          <% if (game.wishlistEnabled) { %>
+            <div class="buy-right">
+              <span class="price-tag free-tag"><%= game.wishlistCount.toLocaleString() %></span>
+              <span class="buy-note">people<br />wishlisted</span>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+
+      <!-- ---------- long-form body ---------- -->
+      <div class="prose">
+        <h2>About this game</h2>
+        <p class="body-copy"><%= game.description %></p>
+
+        <% if (features.length) { %>
+          <h3>Key features</h3>
+          <ul class="feature-list">
+            <% features.forEach(function (f) { %><li><%= f %></li><% }) %>
+          </ul>
+        <% } %>
+
+        <% if (game.sysMin || game.sysRec) { %>
+          <h3>System requirements</h3>
+          <div class="specs">
+            <div class="spec-col">
+              <h4>Minimum</h4>
+              <pre><%= game.sysMin || 'To be announced.' %></pre>
+            </div>
+            <div class="spec-col">
+              <h4>Recommended</h4>
+              <pre><%= game.sysRec || 'To be announced.' %></pre>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- ---------- info sidebar ---------- -->
+    <aside class="info-panel">
+      <div class="info-capsule">
+        <% if (game.coverImage) { %>
+          <img src="/uploads/covers/<%= game.coverImage %>" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
+        <% } else { %>
+          <span class="media-empty"><%- include('partials/logo', { id: 'cap', size: 44 }) %></span>
+        <% } %>
+      </div>
+
+      <div class="info-pad">
+        <p class="info-tagline"><%= game.tagline %></p>
+
+        <dl class="info-rows">
+          <% if (game.wishlistEnabled) { %>
+          <div class="info-row">
+            <dt>Wishlists</dt>
+            <dd><strong><%= game.wishlistCount.toLocaleString() %></strong></dd>
+          </div>
+          <% } %>
+          <div class="info-row">
+            <dt>Status</dt>
+            <dd><%= game.statusLabel %></dd>
+          </div>
+          <% if (game.releaseDate) { %>
+          <div class="info-row">
+            <dt>Release</dt>
+            <dd><%= game.releaseDate %></dd>
+          </div>
+          <% } %>
+          <% if (game.developer) { %>
+          <div class="info-row">
+            <dt>Developer</dt>
+            <dd><%= game.developer %></dd>
+          </div>
+          <% } %>
+          <% if (game.publisher) { %>
+          <div class="info-row">
+            <dt>Publisher</dt>
+            <dd><%= game.publisher %></dd>
+          </div>
+          <% } %>
+          <% if (game.platforms && game.platforms.length) { %>
+          <div class="info-row">
+            <dt>Platforms</dt>
+            <dd><%= game.platforms.join(', ') %></dd>
+          </div>
+          <% } %>
+          <% if (game.showPrice) { %>
+          <div class="info-row">
+            <dt>Price</dt>
+            <dd><%= game.pricingType === 'free' ? 'Free' : '$' + Number(game.price).toFixed(2) %></dd>
+          </div>
+          <% } %>
+        </dl>
+
+        <% if (tags.length) { %>
+          <div class="tag-cloud">
+            <% tags.forEach(function (t) { %><span class="chip"><%= t %></span><% }) %>
+          </div>
+        <% } %>
+
+        <% if (game.wishlistEnabled) { %>
+          <div class="wish-inline">
+            <div class="wish-count-big">
+              <b><%= game.wishlistCount.toLocaleString() %></b>
+              <span>people want this game</span>
+            </div>
+            <%- include('partials/wishlist-form', { game: game, compact: false }) %>
+          </div>
+        <% } %>
+      </div>
+
+      <% if (others.length) { %>
+        <div class="side-block">
+          <h4>More from <%= studio.name %></h4>
+          <% others.forEach(function (g) { %>
+            <a class="mini-game" href="/games/<%= g.slug %>">
+              <span class="mini-thumb">
+                <% if (g.coverImage) { %>
+                  <img src="/uploads/covers/<%= g.coverImage %>" alt="" style="object-position:<%= g.coverPos %>" />
+                <% } else { %>
+                  <span class="media-empty"></span>
+                <% } %>
+              </span>
+              <span class="mini-meta">
+                <h5><%= g.title %></h5>
+                <span><%= g.showPrice ? (g.pricingType === 'free' ? 'Free' : '$' + Number(g.price).toFixed(2)) : g.statusLabel %></span>
+              </span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+
+      <% if (game.externalStoreUrl) { %>
+        <div class="side-block">
+          <h4>Also available on</h4>
+          <a href="<%= game.externalStoreUrl %>" target="_blank" rel="noopener" class="btn btn-ghost btn-block btn-sm">Visit store page</a>
+        </div>
+      <% } %>
+    </aside>
+  </div>
+</section>
+
+<% var voiceList = (typeof voices !== 'undefined' && voices) ? voices : []; %>
+<% var devlogList = (typeof devlog !== 'undefined' && devlog) ? devlog : []; %>
+<% var devlogCount = (typeof devlogTotal !== 'undefined') ? devlogTotal : devlogList.length; %>
+
+<% if (voiceList.length) { %>
+  <section class="section voices-section">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">From the people making it</p>
+        <h2>Why we love building <%= game.title %></h2>
+        <p class="lead">The team, unscripted, on what this project actually feels like to work on.</p>
+      </div>
+
+      <div class="voices-grid">
+        <% voiceList.forEach(function (v) { %>
+          <article class="voice-card<%= (!v.video && !v.photo) ? ' is-text-only' : '' %>">
+            <% if (v.video) { %>
+              <div class="voice-video">
+                <% if (v.video.mode === 'iframe') { %>
+                  <iframe src="<%= v.video.src %>" title="<%= v.name %> on <%= game.title %>"
+                          allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                <% } else { %>
+                  <video src="<%= v.video.src %>" controls preload="metadata"
+                         <%= v.photo ? 'poster=' + v.photo : '' %>></video>
+                <% } %>
+              </div>
+            <% } else if (v.photo) { %>
+              <div class="voice-video voice-photo-only">
+                <img src="<%= v.photo %>" alt="<%= v.name %>" loading="lazy" />
+              </div>
+            <% } %>
+
+            <div class="voice-body">
+              <% if (v.quote) { %><blockquote class="voice-quote"><%= v.quote %></blockquote><% } %>
+              <div class="voice-who">
+                <% if (v.photo && v.video) { %>
+                  <img class="voice-avatar" src="<%= v.photo %>" alt="" loading="lazy" />
+                <% } %>
+                <div>
+                  <span class="voice-name"><%= v.name %></span>
+                  <% if (v.role) { %><span class="voice-role"><%= v.role %></span><% } %>
+                </div>
+              </div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+<% } %>
+
+<% if (devlogList.length) { %>
+  <section class="section">
+    <div class="container">
+      <div class="section-head row-head">
+        <div>
+          <p class="eyebrow">Development log</p>
+          <h2>What we've been doing</h2>
+        </div>
+        <% if (devlogCount > devlogList.length) { %>
+          <a href="/devlog/game/<%= game.slug %>" class="btn btn-ghost btn-sm">
+            All <%= devlogCount %> posts
+          </a>
+        <% } %>
+      </div>
+
+      <div class="devlog-list">
+        <% devlogList.forEach(function (e) { %>
+          <article class="devlog-card">
+            <a class="devlog-card-media" href="/devlog/<%= e.id %>">
+              <% if (e.media.length && e.media[0].type === 'image') { %>
+                <img src="<%= e.media[0].src %>" alt="" loading="lazy" />
+              <% } else if (e.media.length) { %>
+                <span class="media-empty devlog-video-flag">
+                  <svg width="26" height="30" viewBox="0 0 12 14" fill="currentColor" aria-hidden="true"><path d="M0 0l12 7-12 7z"/></svg>
+                </span>
+              <% } else { %>
+                <span class="media-empty"><%- include('partials/logo', { id: 'gdl' + e.id, size: 30 }) %></span>
+              <% } %>
+            </a>
+            <div class="devlog-card-body">
+              <div class="devlog-meta">
+                <time datetime="<%= e.dateInput %>"><%= e.dateLabel %></time>
+              </div>
+              <h3><a href="/devlog/<%= e.id %>"><%= e.title %></a></h3>
+              <p><%= e.excerpt %><%= e.body && e.body.length > 190 ? '…' : '' %></p>
+              <div class="devlog-card-foot">
+                <% if (e.author) { %><span class="muted small">by <%= e.author %></span><% } %>
+                <a href="/devlog/<%= e.id %>" class="text-link">Read the post &rarr;</a>
+              </div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+<% } %>
+
+<% var fbTopics = (typeof feedbackTopics !== 'undefined' && feedbackTopics) ? feedbackTopics : []; %>
+<% var fbStats = (typeof feedbackStats !== 'undefined' && feedbackStats) ? feedbackStats : null; %>
+
+<section class="section feedback-section" id="feedback">
+  <div class="container">
+    <div class="feedback-wrap">
+      <div class="feedback-intro">
+        <p class="eyebrow">Tell us the truth</p>
+        <h2>Feedback on <%= game.title %></h2>
+        <p class="lead">
+          <%= game.isReleased
+              ? 'Played it? We want to know what landed and what did not.'
+              : 'This game is still being made, which means your opinion can still change it. That is the point of asking now.' %>
+        </p>
+
+        <% if (fbStats && fbStats.total) { %>
+          <div class="feedback-stats">
+            <div>
+              <span class="fb-num"><%= fbStats.total %></span>
+              <span class="fb-label"><%= fbStats.total === 1 ? 'response' : 'responses' %></span>
+            </div>
+            <% if (fbStats.rated) { %>
+              <div>
+                <span class="fb-num"><%= fbStats.average %><span class="fb-of">/5</span></span>
+                <span class="fb-label">average from <%= fbStats.rated %></span>
+              </div>
+            <% } %>
+          </div>
+        <% } %>
+
+        <p class="muted small">
+          Feedback goes straight to the team — it is not published on the site,
+          so you can be blunt without it becoming a public review.
+        </p>
+      </div>
+
+      <form class="feedback-form" method="POST" action="/games/<%= game.slug %>/feedback">
+        <div class="fb-rating">
+          <span class="wl-label">How is it looking so far?</span>
+          <div class="fb-stars">
+            <% [5,4,3,2,1].forEach(function (n) { %>
+              <input type="radio" name="rating" id="fb<%= game.id %>-<%= n %>" value="<%= n %>" />
+              <label for="fb<%= game.id %>-<%= n %>" title="<%= n %> out of 5">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+                </svg>
+              </label>
+            <% }) %>
+          </div>
+          <span class="hint">Optional — skip it if you would rather just write.</span>
+        </div>
+
+        <label class="wl-field">
+          <span class="wl-label">What is this about?</span>
+          <select name="topic">
+            <% fbTopics.forEach(function (t) { %><option value="<%= t %>"><%= t %></option><% }) %>
+          </select>
+        </label>
+
+        <label class="wl-field">
+          <span class="wl-label">Your feedback <em>required</em></span>
+          <textarea name="message" rows="5" required maxlength="1500"
+                    placeholder="What works, what does not, what you would change."></textarea>
+        </label>
+
+        <div class="wl-field-row">
+          <label class="wl-field">
+            <span class="wl-label">Name</span>
+            <input type="text" name="name" maxlength="60" placeholder="Optional" />
+          </label>
+          <label class="wl-field">
+            <span class="wl-label">Email</span>
+            <input type="email" name="email" maxlength="160" placeholder="Only if you want a reply" />
+          </label>
+        </div>
+
+        <label class="wl-consent">
+          <input type="checkbox" name="canReply" />
+          <span>
+            You can email me back about this.
+            <span class="wl-consent-hint">We only use it to reply to this feedback.</span>
+          </span>
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-block">Send feedback</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cta">
+      <h2><%= game.isReleased ? 'Enjoying the game?' : "Don't miss the launch" %></h2>
+      <p class="lead">
+        <%= game.isReleased
+            ? 'Tell a friend, leave a review, and keep an eye on what we build next.'
+            : 'Wishlisting helps us show publishers there is real demand — it takes ten seconds.' %>
+      </p>
+      <a href="/wishlist" class="btn btn-primary btn-lg">See all our games</a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

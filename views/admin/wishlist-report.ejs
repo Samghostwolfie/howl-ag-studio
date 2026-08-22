@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= game.title %> — Wishlist report — <%= studio.name %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="admin-body">
+<div class="noise-layer" aria-hidden="true"></div>
+
+<div class="report-shell">
+
+  <div class="report-toolbar no-print">
+    <a href="<%= adminPath %>/wishlist" class="back-link">&larr; Back to wishlist</a>
+    <div class="row-actions">
+      <a href="<%= adminPath %>/wishlist/export.csv?game=<%= game.id %>" class="btn btn-ghost btn-sm">Download CSV</a>
+      <button class="btn btn-primary btn-sm" type="button" onclick="window.print()">Print / save as PDF</button>
+    </div>
+  </div>
+
+  <header class="report-head">
+    <div class="report-brand">
+      <%- include('../partials/logo', { id: 'rep', size: 34 }) %>
+      <span class="brand-name"><%= studio.name %></span>
+    </div>
+    <p class="eyebrow">Wishlist demand report</p>
+    <h1><%= game.title %></h1>
+    <p class="muted">
+      <%= game.statusLabel %> &nbsp;·&nbsp; Generated <%= generatedAt.toLocaleString() %>
+      <% if (stats.firstSignup) { %>
+        &nbsp;·&nbsp; Signups from <%= stats.firstSignup.toLocaleDateString() %>
+        to <%= stats.lastSignup.toLocaleDateString() %>
+      <% } %>
+    </p>
+  </header>
+
+  <section class="report-headline">
+    <div class="report-big">
+      <span class="report-big-num"><%= stats.total.toLocaleString() %></span>
+      <span class="report-big-label">unique people wishlisted <%= game.title %></span>
+    </div>
+  </section>
+
+  <div class="stat-grid report-stats">
+    <div class="stat-card">
+      <span class="stat-num"><%= stats.contactable %></span>
+      <span class="stat-label">Agreed to be contacted</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num"><%= stats.withComment %></span>
+      <span class="stat-label">Wrote why they want it</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num"><%= stats.named %></span>
+      <span class="stat-label">Gave their name</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num"><%= stats.countries.length %></span>
+      <span class="stat-label"><%= stats.countries.length === 1 ? 'Country' : 'Countries' %></span>
+    </div>
+  </div>
+
+  <% if (stats.total) { %>
+    <section class="report-section">
+      <h2>How these numbers are kept honest</h2>
+      <ul class="report-method">
+        <li><strong>One person, counted once.</strong> Signups are de-duplicated per game by email address, case-insensitively, including the common Gmail variations (<code>a.b@gmail.com</code> and <code>ab+tag@gmail.com</code> resolve to the same person). Repeat submissions are recorded but never added to the total — <strong><%= stats.repeatAttempts %></strong> repeat attempt<%= stats.repeatAttempts === 1 ? ' has' : 's have' %> been absorbed this way.</li>
+        <li><strong>Bulk signup is rate-limited.</strong> The signup form accepts only a small number of submissions from the same source within a short window, so the list can't be padded by a script.</li>
+        <li><strong>Throwaway inboxes are marked, not hidden.</strong> Addresses from known disposable-email services are flagged and counted separately — <strong><%= stats.flagged %></strong> in this list.</li>
+        <li><strong>Contact consent is explicit and opt-in.</strong> The <%= stats.contactable %> <%= stats.contactable === 1 ? 'person' : 'people' %> marked contactable each ticked a box agreeing that a publisher may reach out to confirm their interest. They can be emailed directly to verify this report.</li>
+      </ul>
+      <p class="report-caveat">
+        <strong>What this does not claim:</strong> email addresses here are not verified by a confirmation
+        click, and every detail below is self-reported. The figures show genuine, de-duplicated sign-up
+        intent — not confirmed identities or a guarantee of purchase.
+      </p>
+    </section>
+
+    <% if (stats.countries.length || stats.platforms.length || stats.sources.length) { %>
+      <section class="report-section">
+        <h2>Who they are</h2>
+        <div class="report-breakdowns">
+          <% [['Countries', stats.countries], ['Platforms', stats.platforms], ['Where they found us', stats.sources]].forEach(function (pair) { %>
+            <% if (pair[1].length) { %>
+              <div class="report-breakdown">
+                <h3><%= pair[0] %></h3>
+                <% pair[1].slice(0, 8).forEach(function (row) { %>
+                  <div class="bd-row">
+                    <span class="bd-label"><%= row.label %></span>
+                    <span class="bd-bar"><span style="width:<%= Math.round((row.count / pair[1][0].count) * 100) %>%"></span></span>
+                    <span class="bd-count"><%= row.count %></span>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <% var quotes = entries.filter(function (e) { return e.comment; }); %>
+    <% if (quotes.length) { %>
+      <section class="report-section">
+        <h2>In their own words <span class="muted">(<%= quotes.length %>)</span></h2>
+        <div class="report-quotes">
+          <% quotes.slice(0, 25).forEach(function (q) { %>
+            <blockquote class="report-quote">
+              <p><%= q.comment %></p>
+              <cite>
+                <%= q.name || 'Anonymous' %><% if (q.country) { %>, <%= q.country %><% } %>
+                <% if (q.contactConsent) { %><span class="badge-consent">contactable</span><% } %>
+              </cite>
+            </blockquote>
+          <% }) %>
+        </div>
+        <% if (quotes.length > 25) { %>
+          <p class="muted small">Showing the 25 most recent. The full set is in the CSV.</p>
+        <% } %>
+      </section>
+    <% } %>
+
+    <% var contactables = entries.filter(function (e) { return e.contactConsent; }); %>
+    <% if (contactables.length) { %>
+      <section class="report-section">
+        <h2>Verifiable contacts <span class="muted">(<%= contactables.length %>)</span></h2>
+        <p class="muted small">
+          These people opted in to being contacted about this game. Share this section only with a
+          publisher you're actively talking to — it contains personal contact details.
+        </p>
+        <table class="admin-table">
+          <thead><tr><th>Name</th><th>Email</th><th>Country</th><th>Platform</th><th>Signed up</th></tr></thead>
+          <tbody>
+            <% contactables.forEach(function (c) { %>
+              <tr>
+                <td><%= c.name || '—' %></td>
+                <td class="mono"><%= c.email %></td>
+                <td><%= c.country || '—' %></td>
+                <td><%= c.platform || '—' %></td>
+                <td><%= new Date(c.date).toLocaleDateString() %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </section>
+    <% } %>
+  <% } else { %>
+    <section class="report-section">
+      <p class="muted">No signups for this game yet — the report fills in as people wishlist it.</p>
+    </section>
+  <% } %>
+
+  <footer class="report-foot">
+    <p class="muted small">
+      <%= studio.name %> · <%= game.title %> wishlist report · generated <%= generatedAt.toLocaleString() %>
+      · figures de-duplicated per person
+    </p>
+  </footer>
+
+</div>
+
+</body>
+</html>

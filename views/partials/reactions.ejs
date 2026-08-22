@@ -1,0 +1,29 @@
+<%
+  // Like / dislike buttons. `myVote` is only known on the single-post page; on the
+  // list we just show the counts without highlighting.
+  var mine = typeof myVote !== 'undefined' ? myVote : 0;
+  var isCompact = typeof compact !== 'undefined' ? compact : false;
+%>
+<div class="reactions<%= isCompact ? ' is-compact' : '' %>">
+  <form method="POST" action="/news/<%= post.id %>/react">
+    <input type="hidden" name="value" value="up" />
+    <button type="submit" class="react-btn <%= mine === 1 ? 'is-on' : '' %>"
+            aria-label="Like this post"<%= mine === 1 ? ' title="Click again to undo"' : '' %>>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M2 21h4V9H2v12zM22 10a2 2 0 0 0-2-2h-6.3l1-4.6v-.3a1.5 1.5 0 0 0-.44-1.06L13.2 1 6.6 7.6A2 2 0 0 0 6 9v10a2 2 0 0 0 2 2h9a2 2 0 0 0 1.84-1.22l3-7A2 2 0 0 0 22 12v-2z"/>
+      </svg>
+      <span><%= post.likes %></span>
+    </button>
+  </form>
+
+  <form method="POST" action="/news/<%= post.id %>/react">
+    <input type="hidden" name="value" value="down" />
+    <button type="submit" class="react-btn react-down <%= mine === -1 ? 'is-on' : '' %>"
+            aria-label="Dislike this post"<%= mine === -1 ? ' title="Click again to undo"' : '' %>>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+        <path d="M22 3h-4v12h4V3zM2 14a2 2 0 0 0 2 2h6.3l-1 4.6v.3c0 .4.16.78.44 1.06L10.8 23l6.6-6.6A2 2 0 0 0 18 15V5a2 2 0 0 0-2-2H7a2 2 0 0 0-1.84 1.22l-3 7A2 2 0 0 0 2 12v2z"/>
+      </svg>
+      <span><%= post.dislikes %></span>
+    </button>
+  </form>
+</div>

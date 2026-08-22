@@ -1,0 +1,53 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <span class="ghost-type" aria-hidden="true">About</span>
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">About Us</p>
+      <h2><%= studio.name %></h2>
+      <p class="lead"><%= studio.pitch %></p>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tight">
+  <div class="container narrow">
+    <h2>Our story</h2>
+    <p class="body-copy"><%= studio.story %></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="rows">
+      <div class="row-item">
+        <span class="row-num">01</span>
+        <h3>What we make</h3>
+        <p>Original games with a clear point of view — built small, built deliberately, and finished.</p>
+      </div>
+      <div class="row-item">
+        <span class="row-num">02</span>
+        <h3>How we work</h3>
+        <p>Prototype fast, cut hard, and put builds in front of real players early instead of guessing.</p>
+      </div>
+      <div class="row-item">
+        <span class="row-num">03</span>
+        <h3>Work with us</h3>
+        <p>Publishers, press and collaborators — reach us at <a class="accent" href="mailto:<%= studio.email %>"><%= studio.email %></a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-tight">
+  <div class="container">
+    <div class="cta">
+      <h2>Follow the journey</h2>
+      <p class="lead">Wishlist our games and get updates as we build in the open.</p>
+      <a href="/wishlist" class="btn btn-primary btn-lg">Join the wishlist</a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

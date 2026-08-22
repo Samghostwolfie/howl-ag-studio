@@ -1,0 +1,55 @@
+<%- include('partials/header') %>
+
+<section class="wl-hero">
+  <div class="container narrow center">
+    <p class="eyebrow" style="justify-content:center">Show Us The Love</p>
+    <h1>Wishlist our games</h1>
+    <p class="lead">
+      Every wishlist counts — literally. We use this number to show publishers real player demand,
+      and you'll be first to know the moment a game launches.
+    </p>
+    <div style="margin-top:36px">
+      <div class="wl-counter"><%= totalWishlist.toLocaleString() %></div>
+      <div class="wl-counter-label">Total wishlists so far</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="wl-list">
+      <% games.forEach(function(game) { %>
+        <div class="wl-item">
+          <a class="wl-thumb" href="/games/<%= game.slug %>">
+            <% if (game.coverImage) { %>
+              <img src="/uploads/covers/<%= game.coverImage %>" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
+            <% } else { %>
+              <span class="media-empty"><%- include('partials/logo', { id: 'wl' + game.id, size: 38 }) %></span>
+            <% } %>
+          </a>
+
+          <div class="wl-item-body">
+            <span class="badge status-<%= game.status %>"><%= game.statusLabel %></span>
+            <h3 style="margin-top:12px"><a href="/games/<%= game.slug %>"><%= game.title %></a></h3>
+            <p class="tag"><%= game.genre %></p>
+            <p><%= game.tagline %></p>
+            <p class="gc-wish"><strong><%= game.wishlistCount.toLocaleString() %></strong> people already wishlisted this</p>
+          </div>
+
+          <div class="wl-action">
+            <%- include('partials/wishlist-form', { game: game, compact: true }) %>
+            <% if (game.isDemo) { %>
+              <a href="/games/<%= game.slug %>" class="btn btn-ghost btn-block btn-sm" style="margin-top:10px">Play the demo</a>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (!games.length) { %>
+      <p class="muted">No games to wishlist yet — check back soon.</p>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restart needed — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="admin-body">
+<div class="noise-layer" aria-hidden="true"></div>
+
+<div style="max-width:760px;margin:0 auto;padding:80px 28px">
+  <p class="eyebrow">Server needs a restart</p>
+  <h1 style="font-size:clamp(2.6rem,7vw,4.2rem);line-height:0.95;margin-bottom:22px">
+    This button needs<br />the new code
+  </h1>
+
+  <p class="lead" style="margin-bottom:30px">
+    The admin panel tried to reach <code><%= method %> <%= attemptedPath %></code>, but the
+    server that's currently running doesn't have that page yet.
+  </p>
+
+  <div class="fieldset" style="margin-bottom:28px">
+    <p style="margin:0 0 14px"><strong>Why this happens</strong></p>
+    <p class="muted" style="margin:0">
+      Node.js reads <code>server.js</code> once, when it starts — and then never again.
+      So when the files on your computer get updated, the window that's already running
+      keeps serving the <em>old</em> version until you stop and start it. Nothing is broken
+      or corrupted; the new code is sitting on disk waiting.
+    </p>
+  </div>
+
+  <div class="fieldset" style="margin-bottom:28px">
+    <p style="margin:0 0 14px"><strong>How to fix it (10 seconds)</strong></p>
+    <ol class="muted" style="margin:0;padding-left:20px;line-height:1.9">
+      <li>Find the black Command Prompt window running the site.</li>
+      <li>Click it, then press <strong>Ctrl + C</strong> (stops the server).</li>
+      <li>Type <code>npm start</code> and press Enter.</li>
+      <li>Come back here and reload.</li>
+    </ol>
+  </div>
+
+  <p class="muted" style="margin-bottom:30px">
+    This server is running <strong>v<%= typeof appVersion !== 'undefined' ? appVersion : '?' %></strong>.
+    After restarting, check the version in the admin sidebar — if it changed, the restart worked.
+  </p>
+
+  <a href="<%= adminPath %>" class="btn btn-primary btn-lg">Back to the dashboard</a>
+</div>
+
+</body>
+</html>

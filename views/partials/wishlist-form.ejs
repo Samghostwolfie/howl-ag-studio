@@ -1,0 +1,68 @@
+<%
+  // Shared wishlist signup form.
+  //   game    – the game being wishlisted
+  //   compact – true on list pages (email + name only, rest behind a toggle)
+  var compact = typeof compact !== 'undefined' ? compact : false;
+  var fid = 'wl-' + game.id;
+%>
+<form class="wishlist-form<%= compact ? ' is-compact' : '' %>" action="/games/<%= game.slug %>/wishlist" method="POST">
+
+  <label class="wl-field">
+    <span class="wl-label">Email <em>required</em></span>
+    <input type="email" name="email" placeholder="you@email.com" required />
+  </label>
+
+  <label class="wl-field">
+    <span class="wl-label">Your name</span>
+    <input type="text" name="name" placeholder="So we know who to thank" maxlength="80" />
+  </label>
+
+  <details class="wl-more" id="<%= fid %>-more">
+    <summary>Add more detail <span class="wl-more-hint">— helps us prove real demand</span></summary>
+
+    <div class="wl-more-body">
+      <div class="wl-field-row">
+        <label class="wl-field">
+          <span class="wl-label">Country</span>
+          <input type="text" name="country" placeholder="e.g. Nigeria" maxlength="56" />
+        </label>
+
+        <label class="wl-field">
+          <span class="wl-label">You'd play on</span>
+          <select name="platform">
+            <option value="">Pick one</option>
+            <% wlPlatforms.forEach(function (p) { %>
+              <option value="<%= p %>"><%= p %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+
+      <label class="wl-field">
+        <span class="wl-label">How did you hear about us?</span>
+        <select name="source">
+          <option value="">Pick one</option>
+          <% wlSources.forEach(function (s) { %>
+            <option value="<%= s %>"><%= s %></option>
+          <% }) %>
+        </select>
+      </label>
+
+      <label class="wl-field">
+        <span class="wl-label">What made you want to play this?</span>
+        <textarea name="comment" rows="3" maxlength="<%= wlCommentMax %>"
+                  placeholder="A sentence or two. We may show this to publishers as feedback."></textarea>
+      </label>
+    </div>
+  </details>
+
+  <label class="wl-consent">
+    <input type="checkbox" name="contactConsent" />
+    <span>
+      A publisher may contact me to confirm my interest.
+      <span class="wl-consent-hint">Optional. We never sell your details or send marketing you didn't ask for.</span>
+    </span>
+  </label>
+
+  <button type="submit" class="btn btn-primary btn-block">Add to wishlist</button>
+</form>

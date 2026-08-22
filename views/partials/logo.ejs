@@ -1,0 +1,7 @@
+<%
+  // The studio mark. `id` is kept for backwards compatibility with older includes
+  // (it used to seed a gradient id) — harmless now that this is an image.
+  var logoSize = typeof size !== 'undefined' ? size : 30;
+%>
+<img class="logo-mark" src="/img/logo-wolf-512.png" width="<%= logoSize %>" height="<%= logoSize %>"
+     alt="" aria-hidden="true" loading="eager" decoding="async" />

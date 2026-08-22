@@ -1,0 +1,104 @@
+<%- include('partials/header') %>
+
+<section class="game-top">
+  <div class="container">
+    <p class="breadcrumb">
+      <a href="/">Home</a> &nbsp;/&nbsp; <a href="/news">News</a>
+      &nbsp;/&nbsp; <a href="/news?category=<%= post.category %>"><%= post.categoryLabel %></a>
+    </p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px">
+  <div class="container narrow" id="post-<%= post.id %>">
+
+    <div class="devlog-post-head">
+      <div class="devlog-meta">
+        <span class="news-cat static"><%= post.categoryLabel %></span>
+        <time datetime="<%= post.dateInput %>"><%= post.dateLabel %></time>
+        <% if (post.gameSlug) { %>
+          <span class="devlog-dot">·</span>
+          <a class="devlog-game" href="/games/<%= post.gameSlug %>"><%= post.gameTitle %></a>
+        <% } %>
+      </div>
+      <h1 class="devlog-post-title"><%= post.title %></h1>
+    </div>
+
+    <% post.media.forEach(function (m, i) { %>
+      <figure class="devlog-figure">
+        <% if (m.type === 'video' && m.mode === 'iframe') { %>
+          <div class="devlog-embed">
+            <iframe src="<%= m.src %>" title="<%= post.title %> video <%= i + 1 %>"
+                    allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+          </div>
+        <% } else if (m.type === 'video') { %>
+          <video src="<%= m.src %>" controls preload="metadata"></video>
+        <% } else { %>
+          <img src="<%= m.src %>" alt="" loading="lazy" />
+        <% } %>
+      </figure>
+    <% }) %>
+
+    <div class="prose devlog-post-body">
+      <p class="body-copy"><%= post.body %></p>
+    </div>
+
+    <div class="post-actions">
+      <%- include('partials/reactions', { post: post, myVote: myVote, compact: false }) %>
+      <a href="#comments" class="text-link"><%= post.commentCount %> comment<%= post.commentCount === 1 ? '' : 's' %></a>
+    </div>
+
+    <!-- ---------- comments ---------- -->
+    <div class="comments" id="comments">
+      <h3>Comments <span class="muted">(<%= post.commentCount %>)</span></h3>
+
+      <% if (post.commentsOpen === false) { %>
+        <p class="muted">Comments are closed on this post.</p>
+      <% } else { %>
+        <form class="comment-form" method="POST" action="/news/<%= post.id %>/comment">
+          <div class="comment-form-row">
+            <label class="wl-field">
+              <span class="wl-label">Your name</span>
+              <input type="text" name="name" maxlength="60" placeholder="Anonymous" />
+            </label>
+          </div>
+          <label class="wl-field">
+            <span class="wl-label">Comment</span>
+            <textarea name="body" rows="4" maxlength="<%= publicCommentMax %>" required
+                      placeholder="Keep it civil — this is a small studio's front door."></textarea>
+          </label>
+          <button type="submit" class="btn btn-primary">Post comment</button>
+        </form>
+      <% } %>
+
+      <% if (!post.comments.length) { %>
+        <p class="muted comment-empty">No comments yet — be the first.</p>
+      <% } %>
+
+      <div class="comment-list">
+        <% post.comments.forEach(function (c) { %>
+          <div class="comment">
+            <div class="comment-avatar" aria-hidden="true"><%= (c.name || 'A').trim().charAt(0).toUpperCase() %></div>
+            <div class="comment-body">
+              <div class="comment-head">
+                <span class="comment-name"><%= c.name %></span>
+                <time class="comment-date" datetime="<%= c.date %>"><%= new Date(c.date).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) %></time>
+              </div>
+              <p><%= c.body %></p>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="devlog-post-foot">
+      <a href="/news" class="btn btn-ghost">&larr; All news</a>
+      <% if (post.gameSlug) { %>
+        <a href="/games/<%= post.gameSlug %>" class="btn btn-primary">About <%= post.gameTitle %></a>
+      <% } %>
+    </div>
+
+  </div>
+</section>
+
+<%- include('partials/footer') %>

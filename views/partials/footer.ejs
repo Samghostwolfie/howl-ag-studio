@@ -1,0 +1,47 @@
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="/" class="brand">
+            <%- include('logo', { id: 'ftr', size: 30 }) %>
+            <span class="brand-name"><%= studio.name %><span class="sub">Game Studio</span></span>
+          </a>
+          <p><%= studio.tagline %></p>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <h4>Site</h4>
+            <a href="/">Intro</a>
+            <a href="/work">Work</a>
+            <a href="/devlog">Devlog</a>
+            <a href="/news">News</a>
+            <a href="/team">Team</a>
+            <a href="/about">About</a>
+            <a href="/wishlist">Wishlist</a>
+          </div>
+          <div>
+            <h4>Connect</h4>
+            <% if (studio.email) { %><a href="mailto:<%= studio.email %>"><%= studio.email %></a><% } %>
+            <% var sf = studio.socials || {}; %>
+            <% if (sf.x) { %><a href="<%= sf.x %>" target="_blank" rel="noopener">X / Twitter</a><% } %>
+            <% if (sf.discord) { %><a href="<%= sf.discord %>" target="_blank" rel="noopener">Discord</a><% } %>
+            <% if (sf.youtube) { %><a href="<%= sf.youtube %>" target="_blank" rel="noopener">YouTube</a><% } %>
+            <% if (sf.instagram) { %><a href="<%= sf.instagram %>" target="_blank" rel="noopener">Instagram</a><% } %>
+          </div>
+          <div>
+            <h4>Studio</h4>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; <%= new Date().getFullYear() %> <%= studio.name %> — All rights reserved.</p>
+        <p>Independent &amp; self-published</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

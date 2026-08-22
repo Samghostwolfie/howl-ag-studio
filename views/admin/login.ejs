@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login — <%= studio.name %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="admin-body">
+  <div class="noise-layer" aria-hidden="true"></div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <a href="/" class="brand">
+        <%- include('../partials/logo', { id: 'login', size: 32 }) %>
+        <span class="brand-name"><%= studio.name %><span class="sub">Game Studio</span></span>
+      </a>
+      <h1>Staff Access</h1>
+      <p class="muted">Admin &amp; moderator login. Restricted to studio staff.</p>
+
+      <% if (typeof error !== 'undefined' && error && error.length) { %>
+        <div class="flash flash-error"><% error.forEach(function(m){ %><p><%= m %></p><% }) %></div>
+      <% } %>
+
+      <form method="POST" action="<%= adminPath %>/login" class="stack-form">
+        <label>Username
+          <input type="text" name="username" autocomplete="username" required autofocus />
+        </label>
+        <label>Password
+          <input type="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+
+      <a class="back-link" href="/">&larr; Back to site</a>
+    </div>
+  </div>
+</body>
+</html>

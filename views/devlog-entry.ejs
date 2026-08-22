@@ -1,0 +1,70 @@
+<%- include('partials/header') %>
+
+<section class="game-top">
+  <div class="container">
+    <p class="breadcrumb">
+      <a href="/">Home</a> &nbsp;/&nbsp; <a href="/devlog">Devlog</a>
+      <% if (entry.gameSlug) { %>
+        &nbsp;/&nbsp; <a href="/devlog?game=<%= entry.gameSlug %>"><%= entry.gameTitle %></a>
+      <% } %>
+    </p>
+  </div>
+</section>
+
+<section class="section" style="padding-top:20px">
+  <div class="container narrow">
+
+    <div class="devlog-post-head">
+      <div class="devlog-meta">
+        <time datetime="<%= entry.dateInput %>"><%= entry.dateLabel %></time>
+        <% if (entry.gameSlug) { %>
+          <span class="devlog-dot">·</span>
+          <a class="devlog-game" href="/games/<%= entry.gameSlug %>"><%= entry.gameTitle %></a>
+        <% } %>
+      </div>
+      <h1 class="devlog-post-title"><%= entry.title %></h1>
+      <% if (entry.author) { %><p class="muted">Written by <%= entry.author %></p><% } %>
+    </div>
+
+    <% entry.media.forEach(function (m, i) { %>
+      <figure class="devlog-figure">
+        <% if (m.type === 'video' && m.mode === 'iframe') { %>
+          <div class="devlog-embed">
+            <iframe src="<%= m.src %>" title="<%= entry.title %> video <%= i + 1 %>"
+                    allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+          </div>
+        <% } else if (m.type === 'video') { %>
+          <video src="<%= m.src %>" controls preload="metadata"></video>
+        <% } else { %>
+          <img src="<%= m.src %>" alt="" loading="lazy" />
+        <% } %>
+      </figure>
+    <% }) %>
+
+    <div class="prose devlog-post-body">
+      <p class="body-copy"><%= entry.body %></p>
+    </div>
+
+    <div class="devlog-post-foot">
+      <a href="/devlog" class="btn btn-ghost">&larr; All posts</a>
+      <% if (entry.gameSlug) { %>
+        <a href="/games/<%= entry.gameSlug %>" class="btn btn-primary">About <%= entry.gameTitle %></a>
+      <% } %>
+    </div>
+
+    <% if (more.length) { %>
+      <div class="devlog-more">
+        <h3>More from <%= entry.gameTitle %></h3>
+        <% more.forEach(function (m) { %>
+          <a class="devlog-more-item" href="/devlog/<%= m.id %>">
+            <span class="devlog-more-date"><%= m.dateLabel %></span>
+            <span class="devlog-more-title"><%= m.title %></span>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+
+  </div>
+</section>
+
+<%- include('partials/footer') %>

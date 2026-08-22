@@ -1,0 +1,43 @@
+[
+  {
+    "id": "g_1787089749006",
+    "slug": "home",
+    "title": "Home",
+    "tagline": "",
+    "description": "HOME is a first-person psychological and action-horror game set aboard an abandoned corporate transit\r\nstation in the year 3045.\r\nThe player takes the role of Diego, a veteran of a brutal war and a failed subject of a military augmentation\r\nprogram. Struggling financially and attempting to build a future for himself, Diego accepts a dangerous\r\ncontract with several companions to investigate the disappearance of the corporate transit hub Zipacna.\r\nWhat initially appears to be a high-paying recovery and investigation job quickly becomes a fight for\r\nsurvival.\r\nThe crew discovers that Zipacna has become a sealed nightmare inhabited by grotesque biological and\r\ncybernetic creatures known as the Core Infected. The station contains evidence of an unknown force or\r\nphenomenon emerging from beyond known human space, as well as survivors whose minds and bodies\r\nhave been permanently altered.\r\nDiego must navigate the abandoned facility, fight increasingly dangerous creatures, solve environmental\r\nproblems, manage limited resources, uncover the truth behind the station, and confront the psychological\r\nconsequences of what he discovers.\r\n1\r\nAt its heart, HOME is a story about survival, guilt, sacrifice, family, and the meaning of home when\r\neverything familiar has been taken away.",
+    "genre": "Horror",
+    "platforms": [
+      "PC / PlayStation / Xbox (TBD) / Nintendo Switch (TBD)"
+    ],
+    "status": "development",
+    "pricingType": "free",
+    "price": 0,
+    "externalStoreUrl": "",
+    "coverImage": "howl-studio-1787090243616-718852132.jpg",
+    "screenshots": [],
+    "trailerUrl": "",
+    "downloadFile": "",
+    "createdAt": "2026-08-18T21:49:09.006Z",
+    "updatedAt": "2026-08-19T08:43:38.980Z",
+    "wishlistEnabled": true,
+    "imageLinks": [
+      "https://drive.google.com/file/d/1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g/view?usp=drive_link"
+    ],
+    "videoLinks": [
+      "https://drive.google.com/file/d/1blKajI9mZafLOKXyj7MtGqD5egKkS6I6/view?usp=drive_link",
+      "https://drive.google.com/file/d/1o9ybS44EDmvvduOCQiqVBu_6WrXr-4Ac/view?usp=drive_link"
+    ],
+    "releaseDate": "TBA",
+    "developer": "Howl A/G Studio",
+    "publisher": "Howl A/G Studio",
+    "tags": [
+      "Single-player",
+      "Horror",
+      "FPS",
+      "Psychological"
+    ],
+    "features": "",
+    "sysMin": "",
+    "sysRec": ""
+  }
+]

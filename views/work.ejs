@@ -1,0 +1,58 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <span class="ghost-type" aria-hidden="true">Work</span>
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Our Work</p>
+      <h2>Games we're building</h2>
+      <p class="lead">From early prototypes to released titles — everything the pack is howling about.</p>
+    </div>
+
+    <div class="games-grid">
+      <% games.forEach(function(game) { %>
+        <a class="game-card" href="/games/<%= game.slug %>">
+          <div class="gc-media">
+            <span class="badge status-<%= game.status %>"><%= game.statusLabel %></span>
+            <% if (game.coverImage) { %>
+              <img src="/uploads/covers/<%= game.coverImage %>" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
+            <% } else { %>
+              <span class="media-empty"><%- include('partials/logo', { id: 'w' + game.id, size: 44 }) %></span>
+            <% } %>
+          </div>
+          <div class="gc-body">
+            <h3><%= game.title %></h3>
+            <p class="tag"><%= game.genre %></p>
+            <p><%= game.tagline %></p>
+            <div class="gc-foot">
+              <span class="gc-price">
+                <%= game.showPrice
+                     ? (game.pricingType === 'free' ? 'Free' : '$' + Number(game.price).toFixed(2))
+                     : (game.isDemo ? 'Demo' : game.statusLabel) %>
+              </span>
+              <% if (game.wishlistEnabled) { %>
+                <span class="gc-wish"><%= game.wishlistCount %> wishlisted</span>
+              <% } %>
+            </div>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+
+    <% if (!games.length) { %>
+      <p class="muted">No games published yet — add one from the admin panel.</p>
+    <% } %>
+  </div>
+</section>
+
+<section class="section section-tight">
+  <div class="container">
+    <div class="cta">
+      <h2>Like what you see?</h2>
+      <p class="lead">Wishlist a project and you'll be first to hear when it drops.</p>
+      <a href="/wishlist" class="btn btn-primary btn-lg">Join the wishlist</a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

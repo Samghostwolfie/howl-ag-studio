@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title %> — Admin — <%= studio.name %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/img/favicon.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="admin-body">
+<div class="noise-layer" aria-hidden="true"></div>
+<div class="admin-shell">
+
+  <aside class="admin-sidebar">
+    <a href="/" class="brand">
+      <%- include('../partials/logo', { id: 'adm', size: 30 }) %>
+      <span class="brand-name"><%= studio.name %><span class="sub">Admin</span></span>
+    </a>
+    <nav class="admin-nav">
+      <a href="<%= adminPath %>" class="<%= tab === 'overview' ? 'active' : '' %>">Overview</a>
+      <a href="<%= adminPath %>/games" class="<%= tab === 'games' ? 'active' : '' %>">Games</a>
+      <a href="<%= adminPath %>/devlog" class="<%= tab === 'devlog' ? 'active' : '' %>">Devlog</a>
+      <a href="<%= adminPath %>/news" class="<%= tab === 'news' ? 'active' : '' %>">News</a>
+      <a href="<%= adminPath %>/comments" class="<%= tab === 'comments' ? 'active' : '' %>">Comments</a>
+      <a href="<%= adminPath %>/voices" class="<%= tab === 'voices' ? 'active' : '' %>">Team voices</a>
+      <a href="<%= adminPath %>/feedback" class="<%= tab === 'feedback' ? 'active' : '' %>">Feedback</a>
+      <a href="<%= adminPath %>/team" class="<%= tab === 'team' ? 'active' : '' %>">Team</a>
+      <a href="<%= adminPath %>/wishlist" class="<%= tab === 'wishlist' ? 'active' : '' %>">Wishlist</a>
+      <a href="<%= adminPath %>/settings" class="<%= tab === 'settings' ? 'active' : '' %>">Settings</a>
+    </nav>
+    <div class="admin-sidebar-footer">
+      <p class="muted small">Signed in as <strong><%= currentUser ? currentUser.username : '' %></strong></p>
+      <p class="muted small" style="margin:0">Server v<%= typeof appVersion !== 'undefined' ? appVersion : '?' %></p>
+      <form method="POST" action="<%= adminPath %>/logout"><button class="btn btn-ghost btn-sm btn-block" type="submit">Log out</button></form>
+      <a href="/" class="back-link">&larr; View site</a>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <% if (typeof success !== 'undefined' && success && success.length) { %>
+      <div class="flash flash-success"><% success.forEach(function(m){ %><p><%= m %></p><% }) %></div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error && error.length) { %>
+      <div class="flash flash-error"><% error.forEach(function(m){ %><p><%= m %></p><% }) %></div>
+    <% } %>
+
+    <% /* ================= OVERVIEW ================= */ %>
+    <% if (tab === 'overview') { %>
+      <h1>Overview</h1>
+      <div class="stat-grid">
+        <div class="stat-card"><span class="stat-num"><%= games.length %></span><span class="stat-label">Games</span></div>
+        <div class="stat-card"><span class="stat-num"><%= games.filter(function(g){return g.status==='released'}).length %></span><span class="stat-label">Released</span></div>
+        <div class="stat-card"><span class="stat-num"><%= wishlist.length %></span><span class="stat-label">Wishlist signups</span></div>
+        <div class="stat-card"><span class="stat-num"><%= team.length %></span><span class="stat-label">Team members</span></div>
+      </div>
+
+      <h2>Wishlist by game</h2>
+      <table class="admin-table">
+        <thead><tr><th>Game</th><th>Status</th><th>Wishlists</th></tr></thead>
+        <tbody>
+          <% games.forEach(function(g){ %>
+            <tr>
+              <td><a href="<%= adminPath %>/games/<%= g.id %>/edit"><%= g.title %></a></td>
+              <td><span class="badge status-<%= g.status %>"><%= g.status %></span></td>
+              <td><%= g.wishlistCount %></td>
+            </tr>
+          <% }) %>
+          <% if (!games.length) { %><tr><td colspan="3">No games yet.</td></tr><% } %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <% /* ================= GAMES LIST ================= */ %>
+    <% if (tab === 'games' && !editingGame) { %>
+      <div class="admin-head-row">
+        <h1>Games</h1>
+        <a href="<%= adminPath %>/games/new" class="btn btn-primary btn-sm">+ New game</a>
+      </div>
+      <table class="admin-table">
+        <thead><tr><th>Cover</th><th>Title</th><th>Status</th><th>Price</th><th>Wishlists</th><th></th></tr></thead>
+        <tbody>
+          <% games.forEach(function(g){ %>
+            <tr>
+              <td><% if (g.coverImage) { %><img class="thumb" src="/uploads/covers/<%= g.coverImage %>" alt="" /><% } else { %>—<% } %></td>
+              <td><%= g.title %></td>
+              <td><span class="badge status-<%= g.status %>"><%= g.status %></span></td>
+              <td><%= g.pricingType === 'free' ? 'Free' : '$' + Number(g.price).toFixed(2) %></td>
+              <td><%= g.wishlistCount %></td>
+              <td class="row-actions">
+                <a href="<%= adminPath %>/games/<%= g.id %>/edit" class="btn btn-ghost btn-sm">Edit</a>
+                <a href="/games/<%= g.slug %>" class="btn btn-ghost btn-sm" target="_blank">View</a>
+                <form method="POST" action="<%= adminPath %>/games/<%= g.id %>/delete" onsubmit="return confirm('Delete this game? This cannot be undone.');">
+                  <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!games.length) { %><tr><td colspan="6">No games yet — create your first one.</td></tr><% } %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <% /* ================= GAME CREATE / EDIT ================= */ %>
+    <% if (tab === 'games' && editingGame) { %>
+      <div class="admin-head-row">
+        <h1><%= editingGame.id ? editingGame.title : 'New game' %></h1>
+        <a href="<%= adminPath %>/games" class="back-link">&larr; All games</a>
+      </div>
+
+      <form id="gameForm" method="POST" action="<%= editingGame.id ? adminPath + '/games/' + editingGame.id : adminPath + '/games' %>" enctype="multipart/form-data" class="admin-form">
+        <div class="form-grid">
+          <label>Title
+            <input type="text" name="title" value="<%= editingGame.title || '' %>" required />
+          </label>
+          <label>Genre
+            <input type="text" name="genre" value="<%= editingGame.genre || '' %>" placeholder="Action / Adventure" />
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <label>Platforms <span class="hint">comma separated</span>
+            <input type="text" name="platforms" value="<%= editingGame.platforms ? editingGame.platforms.join(', ') : 'PC' %>" placeholder="PC, PlayStation, Xbox, Switch" />
+          </label>
+          <label>Status
+            <select name="status" id="statusSelect">
+              <option value="development" <%= (!editingGame.status || editingGame.status === 'development') ? 'selected' : '' %>>In development</option>
+              <option value="prototype" <%= editingGame.status === 'prototype' ? 'selected' : '' %>>Prototype</option>
+              <option value="demo" <%= editingGame.status === 'demo' ? 'selected' : '' %>>Demo available</option>
+              <option value="released" <%= editingGame.status === 'released' ? 'selected' : '' %>>Released (full game)</option>
+              <option value="archived" <%= editingGame.status === 'archived' ? 'selected' : '' %>>Archived / hidden</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="check-row">
+          <input type="checkbox" name="wishlistEnabled" id="wishlistToggle"
+                 <%= (editingGame.wishlistEnabled === undefined ? editingGame.status !== 'released' : editingGame.wishlistEnabled) ? 'checked' : '' %> />
+          <span>
+            Show the wishlist form for this game
+            <span class="hint">Turn this on for in-development, prototype and demo games so players can register interest. Wishlist numbers feed the public counter and your CSV export.</span>
+          </span>
+        </label>
+
+        <label>Tagline <span class="hint">one short punchy line</span>
+          <input type="text" name="tagline" value="<%= editingGame.tagline || '' %>" />
+        </label>
+
+        <label>Description
+          <textarea name="description" rows="5"><%= editingGame.description || '' %></textarea>
+        </label>
+
+        <label>Key features <span class="hint">one per line — each becomes a bullet on the game page</span>
+          <textarea name="features" rows="4"><%= editingGame.features || '' %></textarea>
+        </label>
+
+        <div class="form-grid-3">
+          <label>Release date <span class="hint">free text, e.g. "TBA" or "Q3 2026"</span>
+            <input type="text" name="releaseDate" value="<%= editingGame.releaseDate || '' %>" placeholder="TBA" />
+          </label>
+          <label>Developer
+            <input type="text" name="developer" value="<%= editingGame.developer || studio.name %>" />
+          </label>
+          <label>Publisher
+            <input type="text" name="publisher" value="<%= editingGame.publisher || studio.name %>" />
+          </label>
+        </div>
+
+        <label>Tags <span class="hint">comma separated — shown as chips on the game page</span>
+          <input type="text" name="tags" value="<%= editingGame.tags ? editingGame.tags.join(', ') : '' %>" placeholder="Singleplayer, Atmospheric, Story Rich" />
+        </label>
+
+        <fieldset class="fieldset">
+          <legend>Videos</legend>
+          <p class="hint" style="margin:0">
+            Paste normal share links — YouTube, Vimeo, Google Drive, or a direct <code>.mp4</code>.
+            They're converted to players automatically. Videos appear first in the gallery.
+          </p>
+          <label>Video links <span class="hint">one per line — add as many as you like</span>
+            <textarea name="videoLinks" rows="4" placeholder="https://youtu.be/xxxxxxxx&#10;https://drive.google.com/file/d/FILEID/view&#10;https://vimeo.com/123456789"><%= (editingGame.videoLinks || []).join('\n') %></textarea>
+          </label>
+          <label>Main trailer <span class="hint">optional — shown before the links above</span>
+            <input type="url" name="trailerUrl" value="<%= editingGame.trailerUrl || '' %>" placeholder="https://youtu.be/..." />
+          </label>
+        </fieldset>
+
+        <fieldset class="fieldset">
+          <legend>Screenshot links</legend>
+          <p class="hint" style="margin:0">
+            For images hosted elsewhere — Google Drive, Dropbox, Imgur, your own server.
+            Drive share links are converted automatically. You can also upload files further down this page.
+          </p>
+          <label>Image links <span class="hint">one per line — add as many as you like</span>
+            <textarea name="imageLinks" rows="4" placeholder="https://drive.google.com/file/d/FILEID/view&#10;https://i.imgur.com/xxxx.png"><%= (editingGame.imageLinks || []).join('\n') %></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="fieldset" id="pricingFieldset">
+          <legend>Pricing &amp; publishing</legend>
+          <p class="hint" id="pricingLockNote" style="margin:0">
+            Pricing only applies to a <strong>Released</strong> game — an in-development, prototype or demo
+            game never shows a price or a "Free" label to visitors.
+          </p>
+          <div id="pricingControls">
+            <div class="pricing-toggle">
+              <label class="radio-pill">
+                <input type="radio" name="pricingType" value="free" <%= (!editingGame.pricingType || editingGame.pricingType === 'free') ? 'checked' : '' %> />
+                Free
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="pricingType" value="paid" <%= editingGame.pricingType === 'paid' ? 'checked' : '' %> />
+                Paid
+              </label>
+            </div>
+            <label id="priceField">
+              Price (USD)
+              <input type="number" name="price" min="0" step="0.01" value="<%= editingGame.price || '' %>" />
+            </label>
+          </div>
+          <label>External store / download link
+            <span class="hint">Steam, itch.io, a Drive link, or your own checkout — used as the buy link for released games and as the demo link for demos.</span>
+            <input type="url" name="externalStoreUrl" value="<%= editingGame.externalStoreUrl || '' %>" placeholder="https://store.steampowered.com/..." />
+          </label>
+          <p class="hint">
+            Free games with an uploaded build download straight from this site. Paid games use Stripe Checkout
+            automatically when <code>STRIPE_SECRET_KEY</code> is set in <code>.env</code>; otherwise "Buy now"
+            sends players to the link above.
+          </p>
+        </fieldset>
+
+        <fieldset class="fieldset">
+          <legend>System requirements</legend>
+          <div class="form-grid">
+            <label>Minimum
+              <textarea name="sysMin" rows="6" placeholder="OS: Windows 10 64-bit&#10;Processor: ...&#10;Memory: 8 GB RAM"><%= editingGame.sysMin || '' %></textarea>
+            </label>
+            <label>Recommended
+              <textarea name="sysRec" rows="6" placeholder="OS: Windows 11 64-bit&#10;Processor: ...&#10;Memory: 16 GB RAM"><%= editingGame.sysRec || '' %></textarea>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="fieldset">
+          <legend>Cover / key art</legend>
+          <p class="hint" style="margin:0">
+            The same picture is used as the wide hero banner, the 16:10 card and the tall capsule —
+            so parts of it get cropped away differently in each place.
+            <% if (editingGame.coverImage) { %>
+              Drag the marker onto what must always stay in shot.
+            <% } %>
+          </p>
+
+          <% if (editingGame.coverImage) { %>
+            <%- include('../partials/focus-picker', {
+                  src: '/uploads/covers/' + editingGame.coverImage,
+                  prefix: 'cover',
+                  focus: editingGame.coverFocus || { x: 50, y: 50 },
+                  shapes: [
+                    { label: 'Hero', ratio: '21 / 9' },
+                    { label: 'Card', ratio: '16 / 10' },
+                    { label: 'Capsule', ratio: '3 / 4' }
+                  ]
+                }) %>
+          <% } %>
+
+          <label>
+            <%= editingGame.coverImage ? 'Replace artwork' : 'Choose an image' %>
+            <% if (editingGame.coverImage) { %><span class="hint">new artwork resets the framing to centre</span><% } %>
+            <input type="file" name="cover" accept="image/*" />
+          </label>
+        </fieldset>
+      </form>
+
+      <% if (editingGame.id) { %>
+        <div class="upload-panels">
+          <div class="upload-panel">
+            <div class="upload-panel-head">
+              <h3>Screenshot files</h3>
+              <span class="instant-tag">Saves instantly</span>
+            </div>
+            <p class="hint">
+              Uploads the images to this site. They join the same gallery as the "Screenshot links"
+              above — use these when you'd rather not depend on a Drive or Imgur link staying alive.
+            </p>
+            <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/screenshots" enctype="multipart/form-data" class="inline-form">
+              <input type="file" name="screenshots" accept="image/*" multiple />
+              <button type="submit" class="btn btn-solid btn-sm">Upload</button>
+            </form>
+            <% if ((editingGame.screenshots || []).length) { %>
+              <div class="admin-shots">
+                <% editingGame.screenshots.forEach(function(s) { %>
+                  <div class="admin-shot">
+                    <img src="/uploads/screenshots/<%= s %>" alt="" />
+                    <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/screenshots/<%= s %>/delete" onsubmit="return confirm('Remove this screenshot?');">
+                      <button class="btn btn-danger btn-sm btn-block" type="submit">Remove</button>
+                    </form>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+
+          <div class="upload-panel">
+            <div class="upload-panel-head">
+              <h3>Playable build</h3>
+              <span class="instant-tag">Saves instantly</span>
+            </div>
+            <p class="hint">
+              The actual game file people download from this site. Skip it if you're sending players
+              to itch.io or Steam instead — that's the "external store link" field above. Zip recommended.
+            </p>
+            <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/build" enctype="multipart/form-data" class="inline-form">
+              <input type="file" name="build" />
+              <button type="submit" class="btn btn-solid btn-sm">Upload build</button>
+            </form>
+            <% if (editingGame.downloadFile) { %>
+              <p class="muted small" style="margin-top:12px">Current file: <code><%= editingGame.downloadFile %></code></p>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="form-save-bar">
+        <span class="muted small">
+          <% if (editingGame.id) { %>
+            Changes to the fields above aren't stored until you save.
+          <% } else { %>
+            Create the game first — file uploads unlock once it exists.
+          <% } %>
+        </span>
+        <button type="submit" form="gameForm" class="btn btn-primary">
+          <%= editingGame.id ? 'Save changes' : 'Create game' %>
+        </button>
+      </div>
+    <% } %>
+
+    <% /* ================= TEAM ================= */ %>
+    <% if (tab === 'team' && !editingMember) { %>
+      <h1>Team</h1>
+      <table class="admin-table">
+        <thead><tr><th>Photo</th><th>Name</th><th>Role</th><th></th></tr></thead>
+        <tbody>
+          <% team.forEach(function(t){ %>
+            <tr>
+              <td>
+                <% if (t.photo) { %>
+                  <img class="thumb round" src="/uploads/team/<%= t.photo %>" alt=""
+                       style="object-position:<%= (t.photoFocus && t.photoFocus.x != null ? t.photoFocus.x : 50) %>% <%= (t.photoFocus && t.photoFocus.y != null ? t.photoFocus.y : 50) %>%" />
+                <% } else { %>—<% } %>
+              </td>
+              <td><%= t.name %></td>
+              <td><%= t.role %></td>
+              <td class="row-actions">
+                <a href="<%= adminPath %>/team/<%= t.id %>/edit" class="btn btn-ghost btn-sm">Edit</a>
+                <form method="POST" action="<%= adminPath %>/team/<%= t.id %>/delete" onsubmit="return confirm('Remove this team member?');">
+                  <button class="btn btn-danger btn-sm" type="submit">Remove</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!team.length) { %><tr><td colspan="4">No team members yet.</td></tr><% } %>
+        </tbody>
+      </table>
+
+      <div class="admin-subsection">
+        <h2>Add team member</h2>
+        <form method="POST" action="<%= adminPath %>/team" enctype="multipart/form-data" class="admin-form">
+          <div class="form-grid">
+            <label>Name<input type="text" name="name" required /></label>
+            <label>Role<input type="text" name="role" placeholder="Lead Artist" /></label>
+          </div>
+          <label>Bio<textarea name="bio" rows="3"></textarea></label>
+          <div class="form-grid-3">
+            <label>X / Twitter URL<input type="url" name="x" /></label>
+            <label>LinkedIn URL<input type="url" name="linkedin" /></label>
+            <label>itch.io URL<input type="url" name="itch" /></label>
+          </div>
+          <label>Photo <span class="hint">you can position it after saving</span>
+            <input type="file" name="photo" accept="image/*" />
+          </label>
+          <button type="submit" class="btn btn-primary">Add team member</button>
+        </form>
+      </div>
+    <% } %>
+
+    <% /* ================= TEAM MEMBER EDIT ================= */ %>
+    <% if (tab === 'team' && editingMember) { %>
+      <div class="admin-head-row">
+        <h1><%= editingMember.name %></h1>
+        <a href="<%= adminPath %>/team" class="back-link">&larr; All team</a>
+      </div>
+
+      <form id="teamMemberForm" method="POST" action="<%= adminPath %>/team/<%= editingMember.id %>" enctype="multipart/form-data" class="admin-form">
+        <div class="form-grid">
+          <label>Name<input type="text" name="name" value="<%= editingMember.name %>" required /></label>
+          <label>Role<input type="text" name="role" value="<%= editingMember.role || '' %>" placeholder="Lead Artist" /></label>
+        </div>
+        <label>Bio<textarea name="bio" rows="3"><%= editingMember.bio || '' %></textarea></label>
+        <div class="form-grid-3">
+          <% var ms = editingMember.socials || {}; %>
+          <label>X / Twitter URL<input type="url" name="x" value="<%= ms.x || '' %>" /></label>
+          <label>LinkedIn URL<input type="url" name="linkedin" value="<%= ms.linkedin || '' %>" /></label>
+          <label>itch.io URL<input type="url" name="itch" value="<%= ms.itch || '' %>" /></label>
+        </div>
+
+        <fieldset class="fieldset">
+          <legend>Photo framing</legend>
+          <% if (editingMember.photo) { %>
+            <p class="hint" style="margin:0">
+              The team card crops to a square, so a wide or tall photo loses its edges.
+              Put the marker on the face and it stays in shot at every size.
+            </p>
+            <%- include('../partials/focus-picker', {
+                  src: '/uploads/team/' + editingMember.photo,
+                  prefix: '',
+                  focus: editingMember.photoFocus || { x: 50, y: 50 },
+                  shapes: [
+                    { label: 'Team card', ratio: '1 / 1' },
+                    { label: 'Round thumb', ratio: '1 / 1', round: true }
+                  ]
+                }) %>
+          <% } else { %>
+            <p class="hint" style="margin:0">No photo yet — upload one below, then position it.</p>
+          <% } %>
+
+          <label>
+            <%= editingMember.photo ? 'Replace photo' : 'Upload photo' %>
+            <span class="hint">a new picture resets the framing to centre</span>
+            <input type="file" name="photo" accept="image/*" />
+          </label>
+        </fieldset>
+      </form>
+
+      <div class="form-save-bar">
+        <span class="muted small">Framing and details save together.</span>
+        <button type="submit" form="teamMemberForm" class="btn btn-primary">Save changes</button>
+      </div>
+    <% } %>
+
+    <% /* ================= DEVLOG ================= */ %>
+    <% if (tab === 'devlog' && !editingEntry) { %>
+      <div class="admin-head-row">
+        <h1>Devlog (<%= entries.length %>)</h1>
+        <a href="<%= adminPath %>/devlog/new" class="btn btn-primary btn-sm">+ New post</a>
+      </div>
+
+      <% if (!games.length) { %>
+        <p class="muted">Add a game first — every devlog post belongs to one.</p>
+      <% } %>
+
+      <table class="admin-table">
+        <thead><tr><th>Date</th><th>Post</th><th>Game</th><th>Media</th><th>State</th><th></th></tr></thead>
+        <tbody>
+          <% entries.forEach(function (e) { %>
+            <tr>
+              <td class="nowrap"><%= e.dateLabel %></td>
+              <td>
+                <a href="<%= adminPath %>/devlog/<%= e.id %>/edit"><strong><%= e.title %></strong></a>
+                <% if (e.author) { %><div class="muted small">by <%= e.author %></div><% } %>
+              </td>
+              <td><%= e.gameTitle %></td>
+              <td class="muted small">
+                <%= (e.videoLinks || []).length %> video<%= (e.videoLinks || []).length === 1 ? '' : 's' %>,
+                <%= (e.imageLinks || []).length %> image<%= (e.imageLinks || []).length === 1 ? '' : 's' %>
+              </td>
+              <td>
+                <% if (e.published === false) { %>
+                  <span class="badge status-archived">Draft</span>
+                <% } else { %>
+                  <span class="badge status-released">Live</span>
+                <% } %>
+              </td>
+              <td class="row-actions">
+                <a href="<%= adminPath %>/devlog/<%= e.id %>/edit" class="btn btn-ghost btn-sm">Edit</a>
+                <a href="/devlog/<%= e.id %>" target="_blank" class="btn btn-ghost btn-sm">View</a>
+                <form method="POST" action="<%= adminPath %>/devlog/<%= e.id %>/delete" onsubmit="return confirm('Delete this post? This cannot be undone.');">
+                  <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!entries.length) { %><tr><td colspan="6">No posts yet — write your first one.</td></tr><% } %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <% /* ================= DEVLOG CREATE / EDIT ================= */ %>
+    <% if (tab === 'devlog' && editingEntry) { %>
+      <div class="admin-head-row">
+        <h1><%= editingEntry.id ? 'Edit post' : 'New post' %></h1>
+        <a href="<%= adminPath %>/devlog" class="back-link">&larr; All posts</a>
+      </div>
+
+      <form id="devlogForm" method="POST"
+            action="<%= editingEntry.id ? adminPath + '/devlog/' + editingEntry.id : adminPath + '/devlog' %>"
+            class="admin-form">
+
+        <div class="form-grid">
+          <label>Game <span class="hint">which project is this about</span>
+            <select name="gameId" required>
+              <option value="">Choose a game…</option>
+              <% games.forEach(function (g) { %>
+                <option value="<%= g.id %>" <%= editingEntry.gameId === g.id ? 'selected' : '' %>><%= g.title %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Date
+            <input type="date" name="date" value="<%= editingEntry.date || '' %>" required />
+          </label>
+        </div>
+
+        <label>Title
+          <input type="text" name="title" value="<%= editingEntry.title || '' %>"
+                 placeholder="Rebuilt the lighting system" required />
+        </label>
+
+        <label>Author <span class="hint">optional — who wrote this</span>
+          <input type="text" name="author" value="<%= editingEntry.author || '' %>" placeholder="Sam" />
+        </label>
+
+        <label>The post <span class="hint">what you did, what broke, what you learned</span>
+          <textarea name="body" rows="14" placeholder="This week we finally tore out the old lighting rig…"><%= editingEntry.body || '' %></textarea>
+        </label>
+
+        <fieldset class="fieldset">
+          <legend>Videos</legend>
+          <p class="hint" style="margin:0">
+            YouTube, Vimeo, Google Drive or a direct .mp4 — one per line. They appear above the text.
+          </p>
+          <label>Video links
+            <textarea name="videoLinks" rows="3" placeholder="https://youtu.be/xxxxxxxx&#10;https://vimeo.com/123456789"><%= (editingEntry.videoLinks || []).join('\n') %></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="fieldset">
+          <legend>Images</legend>
+          <p class="hint" style="margin:0">
+            Google Drive, Dropbox, Imgur or any direct image URL — one per line.
+            The first image is used as the post's thumbnail.
+          </p>
+          <label>Image links
+            <textarea name="imageLinks" rows="3" placeholder="https://i.imgur.com/xxxx.png&#10;https://drive.google.com/file/d/FILEID/view"><%= (editingEntry.imageLinks || []).join('\n') %></textarea>
+          </label>
+        </fieldset>
+
+        <label class="check-row">
+          <input type="checkbox" name="published" <%= editingEntry.published === false ? '' : 'checked' %> />
+          <span>
+            Publish this post
+            <span class="hint">Untick to keep it as a draft — drafts stay hidden from the public site.</span>
+          </span>
+        </label>
+      </form>
+
+      <div class="form-save-bar">
+        <span class="muted small">
+          <% if (editingEntry.id) { %>Edits go live as soon as you save.<% } else { %>Fill in the game, date and title to post.<% } %>
+        </span>
+        <button type="submit" form="devlogForm" class="btn btn-primary">
+          <%= editingEntry.id ? 'Save post' : 'Create post' %>
+        </button>
+      </div>
+    <% } %>
+
+    <% /* ================= NEWS ================= */ %>
+    <% if (tab === 'news' && !editingPost) { %>
+      <div class="admin-head-row">
+        <h1>News &amp; media (<%= posts.length %>)</h1>
+        <a href="<%= adminPath %>/news/new" class="btn btn-primary btn-sm">+ New post</a>
+      </div>
+      <p class="muted small" style="margin:-16px 0 26px;max-width:72ch">
+        Public posts anyone can like, dislike and comment on. Comments appear immediately —
+        the <a href="<%= adminPath %>/comments" class="text-link">Comments</a> tab is where you hide or delete
+        anything you'd rather wasn't there.
+      </p>
+
+      <table class="admin-table">
+        <thead><tr><th>Date</th><th>Post</th><th>Category</th><th>Reactions</th><th>Comments</th><th>State</th><th></th></tr></thead>
+        <tbody>
+          <% posts.forEach(function (p) { %>
+            <tr>
+              <td class="nowrap"><%= p.dateLabel %></td>
+              <td>
+                <a href="<%= adminPath %>/news/<%= p.id %>/edit"><strong><%= p.title %></strong></a>
+                <% if (p.gameTitle) { %><div class="muted small"><%= p.gameTitle %></div><% } %>
+              </td>
+              <td><span class="badge status-demo"><%= p.categoryLabel %></span></td>
+              <td class="muted small nowrap">&#9650; <%= p.likes %> &nbsp; &#9660; <%= p.dislikes %></td>
+              <td>
+                <%= p.commentCount %>
+                <% if (p.commentsOpen === false) { %><div class="muted small">closed</div><% } %>
+              </td>
+              <td>
+                <% if (p.published === false) { %>
+                  <span class="badge status-archived">Draft</span>
+                <% } else { %>
+                  <span class="badge status-released">Live</span>
+                <% } %>
+              </td>
+              <td class="row-actions">
+                <a href="<%= adminPath %>/news/<%= p.id %>/edit" class="btn btn-ghost btn-sm">Edit</a>
+                <a href="/news/<%= p.id %>" target="_blank" class="btn btn-ghost btn-sm">View</a>
+                <form method="POST" action="<%= adminPath %>/news/<%= p.id %>/delete" onsubmit="return confirm('Delete this post and all its comments? This cannot be undone.');">
+                  <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!posts.length) { %><tr><td colspan="7">Nothing posted yet.</td></tr><% } %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <% /* ================= NEWS CREATE / EDIT ================= */ %>
+    <% if (tab === 'news' && editingPost) { %>
+      <div class="admin-head-row">
+        <h1><%= editingPost.id ? 'Edit post' : 'New post' %></h1>
+        <a href="<%= adminPath %>/news" class="back-link">&larr; All posts</a>
+      </div>
+
+      <form id="newsForm" method="POST"
+            action="<%= editingPost.id ? adminPath + '/news/' + editingPost.id : adminPath + '/news' %>" class="admin-form">
+
+        <div class="form-grid">
+          <label>Category
+            <select name="category">
+              <% Object.keys(categories).forEach(function (k) { %>
+                <option value="<%= k %>" <%= editingPost.category === k ? 'selected' : '' %>><%= categories[k] %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Date
+            <input type="date" name="date" value="<%= editingPost.date || '' %>" required />
+          </label>
+        </div>
+
+        <label>Title
+          <input type="text" name="title" value="<%= editingPost.title || '' %>" required
+                 placeholder="Announcing the first playable build" />
+        </label>
+
+        <label>Related game <span class="hint">optional — links the post to a project</span>
+          <select name="gameId">
+            <option value="">Not about a specific game</option>
+            <% games.forEach(function (g) { %>
+              <option value="<%= g.id %>" <%= editingPost.gameId === g.id ? 'selected' : '' %>><%= g.title %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>The post
+          <textarea name="body" rows="12" placeholder="What's the news?"><%= editingPost.body || '' %></textarea>
+        </label>
+
+        <fieldset class="fieldset">
+          <legend>Media</legend>
+          <p class="hint" style="margin:0">One link per line. Videos show first; the first image becomes the thumbnail.</p>
+          <label>Video links
+            <textarea name="videoLinks" rows="3" placeholder="https://youtu.be/xxxxxxxx"><%= (editingPost.videoLinks || []).join('\n') %></textarea>
+          </label>
+          <label>Image links
+            <textarea name="imageLinks" rows="3" placeholder="https://i.imgur.com/xxxx.png"><%= (editingPost.imageLinks || []).join('\n') %></textarea>
+          </label>
+        </fieldset>
+
+        <label class="check-row">
+          <input type="checkbox" name="commentsOpen" <%= editingPost.commentsOpen === false ? '' : 'checked' %> />
+          <span>
+            Allow comments
+            <span class="hint">Untick to close the thread — existing comments stay visible.</span>
+          </span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" name="published" <%= editingPost.published === false ? '' : 'checked' %> />
+          <span>
+            Publish this post
+            <span class="hint">Drafts stay completely hidden from the public site.</span>
+          </span>
+        </label>
+      </form>
+
+      <div class="form-save-bar">
+        <span class="muted small">Posts go live the moment you save.</span>
+        <button type="submit" form="newsForm" class="btn btn-primary">
+          <%= editingPost.id ? 'Save post' : 'Publish post' %>
+        </button>
+      </div>
+    <% } %>
+
+    <% /* ================= COMMENTS ================= */ %>
+    <% if (tab === 'comments') { %>
+      <div class="admin-head-row">
+        <h1>Comments (<%= comments.length %>)</h1>
+      </div>
+      <p class="muted small" style="margin:-16px 0 26px;max-width:72ch">
+        Comments publish immediately, so this is your clean-up list.
+        <strong>Hide</strong> takes one off the site but keeps it here;
+        <strong>Delete</strong> removes it for good.
+      </p>
+
+      <table class="admin-table">
+        <thead><tr><th>When</th><th>Who</th><th>Comment</th><th>On post</th><th></th></tr></thead>
+        <tbody>
+          <% comments.forEach(function (c) { %>
+            <tr class="<%= c.hidden ? 'is-hidden-row' : '' %>">
+              <td class="nowrap muted small"><%= new Date(c.date).toLocaleString() %></td>
+              <td><strong><%= c.name %></strong></td>
+              <td>
+                <%= c.body %>
+                <% if (c.hidden) { %><div><span class="badge status-archived">Hidden</span></div><% } %>
+              </td>
+              <td>
+                <% if (c.post) { %>
+                  <a href="/news/<%= c.post.id %>#comments" target="_blank"><%= c.post.title %></a>
+                <% } else { %><span class="muted small">deleted post</span><% } %>
+              </td>
+              <td class="row-actions">
+                <form method="POST" action="<%= adminPath %>/comments/<%= c.id %>/hide">
+                  <button class="btn btn-ghost btn-sm" type="submit"><%= c.hidden ? 'Unhide' : 'Hide' %></button>
+                </form>
+                <form method="POST" action="<%= adminPath %>/comments/<%= c.id %>/delete" onsubmit="return confirm('Delete this comment permanently?');">
+                  <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+          <% if (!comments.length) { %><tr><td colspan="5">No comments yet.</td></tr><% } %>
+        </tbody>
+      </table>
+    <% } %>
+
+    <% /* ================= FEEDBACK ================= */ %>
+    <% if (tab === 'feedback') { %>
+      <div class="admin-head-row">
+        <h1>Game feedback (<%= overall.total %>)</h1>
+        <% if (overall.total) { %>
+          <a href="<%= adminPath %>/feedback/export.csv" class="btn btn-solid btn-sm">Export CSV</a>
+        <% } %>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><span class="stat-num"><%= overall.total %></span><span class="stat-label">Responses</span></div>
+        <div class="stat-card"><span class="stat-num"><%= overall.average || '—' %></span><span class="stat-label">Average rating</span></div>
+        <div class="stat-card"><span class="stat-num"><%= overall.rated %></span><span class="stat-label">Left a rating</span></div>
+        <div class="stat-card"><span class="stat-num"><%= overall.contactable %></span><span class="stat-label">Happy to be emailed</span></div>
+      </div>
+
+      <p class="muted small" style="margin:-30px 0 30px;max-width:72ch">
+        This is private — feedback never appears on the public site, which is what lets people
+        be blunt. Only the people who ticked "you can email me back" expect a reply.
+      </p>
+
+      <% if (!groups.length) { %><p class="muted">No feedback yet.</p><% } %>
+
+      <% groups.forEach(function (grp) { %>
+        <details class="wishlist-group" open>
+          <summary>
+            <span class="wg-title">
+              <a href="<%= adminPath %>/games/<%= grp.game.id %>/edit"><%= grp.game.title %></a>
+              <span class="badge status-<%= grp.game.status %>"><%= grp.game.statusLabel %></span>
+            </span>
+            <span class="wg-meta">
+              <strong><%= grp.stats.total %></strong> response<%= grp.stats.total === 1 ? '' : 's' %>
+              <% if (grp.stats.rated) { %> &middot; <strong><%= grp.stats.average %></strong>/5 avg<% } %>
+            </span>
+          </summary>
+
+          <div class="wl-people">
+            <% grp.items.forEach(function (f) { %>
+              <div class="wl-person">
+                <div class="wl-person-head">
+                  <div class="wl-person-id">
+                    <span class="wl-person-name"><%= f.name || 'Anonymous' %></span>
+                    <% if (f.email) { %>
+                      <a class="wl-person-email" href="mailto:<%= f.email %>"><%= f.email %></a>
+                    <% } %>
+                  </div>
+                  <div class="wl-person-badges">
+                    <span class="badge status-demo"><%= f.topic %></span>
+                    <% if (f.rating) { %><span class="badge-dup"><%= f.rating %>/5</span><% } %>
+                    <% if (f.canReply && f.email) { %><span class="badge-consent">wants a reply</span><% } %>
+                  </div>
+                </div>
+
+                <blockquote class="wl-person-comment"><%= f.message %></blockquote>
+
+                <dl class="wl-person-facts">
+                  <div><dt>Sent</dt><dd><%= new Date(f.date).toLocaleString() %></dd></div>
+                </dl>
+
+                <div class="wl-person-actions">
+                  <form method="POST" action="<%= adminPath %>/feedback/<%= f.id %>/delete" onsubmit="return confirm('Delete this feedback?');">
+                    <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </details>
+      <% }) %>
+    <% } %>
+
+    <% /* ================= TEAM VOICES ================= */ %>
+    <% if (tab === 'voices' && !editingVoice) { %>
+      <div class="admin-head-row">
+        <h1>Team voices (<%= voices.length %>)</h1>
+        <a href="<%= adminPath %>/voices/new" class="btn btn-primary btn-sm">+ New clip</a>
+      </div>
+      <p class="muted small" style="margin:-16px 0 26px;max-width:70ch">
+        Short clips of the team talking about what they love making a particular game.
+        These show up in a "Why we love building…" section on that game's page — it's the
+        kind of thing that makes a project feel like real people made it.
+      </p>
+
+      <% var byGame = {}; voices.forEach(function (v) { (byGame[v.gameId] = byGame[v.gameId] || []).push(v); }); %>
+
+      <% if (!voices.length) { %>
+        <p class="muted">Nothing here yet — add the first clip.</p>
+      <% } %>
+
+      <% Object.keys(byGame).forEach(function (gid) { %>
+        <% var list = byGame[gid]; %>
+        <div class="admin-subsection" style="margin-top:34px">
+          <div class="admin-head-row" style="margin-bottom:14px">
+            <h2><%= list[0].gameTitle || 'Removed game' %></h2>
+            <a href="<%= adminPath %>/voices/new?game=<%= gid %>" class="btn btn-ghost btn-sm">+ Add to this game</a>
+          </div>
+          <table class="admin-table">
+            <thead><tr><th>Person</th><th>What they said</th><th>Video</th><th></th></tr></thead>
+            <tbody>
+              <% list.forEach(function (v) { %>
+                <tr>
+                  <td>
+                    <strong><%= v.name %></strong>
+                    <% if (v.role) { %><div class="muted small"><%= v.role %></div><% } %>
+                  </td>
+                  <td class="muted small"><%= v.quote ? v.quote.slice(0, 110) + (v.quote.length > 110 ? '…' : '') : '—' %></td>
+                  <td>
+                    <% if (v.video) { %>
+                      <span class="badge status-demo">Video</span>
+                    <% } else { %>
+                      <span class="muted small">text only</span>
+                    <% } %>
+                  </td>
+                  <td class="row-actions">
+                    <a href="<%= adminPath %>/voices/<%= v.id %>/edit" class="btn btn-ghost btn-sm">Edit</a>
+                    <form method="POST" action="<%= adminPath %>/voices/<%= v.id %>/delete" onsubmit="return confirm('Remove this clip?');">
+                      <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% }) %>
+    <% } %>
+
+    <% /* ================= VOICE CREATE / EDIT ================= */ %>
+    <% if (tab === 'voices' && editingVoice) { %>
+      <div class="admin-head-row">
+        <h1><%= editingVoice.id ? 'Edit clip' : 'New clip' %></h1>
+        <a href="<%= adminPath %>/voices" class="back-link">&larr; All voices</a>
+      </div>
+
+      <form id="voiceForm" method="POST"
+            action="<%= editingVoice.id ? adminPath + '/voices/' + editingVoice.id : adminPath + '/voices' %>"
+            class="admin-form">
+
+        <label>Game <span class="hint">which project is this person talking about</span>
+          <select name="gameId" required>
+            <option value="">Choose a game…</option>
+            <% games.forEach(function (g) { %>
+              <option value="<%= g.id %>" <%= editingVoice.gameId === g.id ? 'selected' : '' %>><%= g.title %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <div class="form-grid">
+          <label>Name
+            <input type="text" name="name" value="<%= editingVoice.name || '' %>" required
+                   list="teamNames" placeholder="Who is speaking" />
+            <datalist id="teamNames">
+              <% (team || []).forEach(function (t) { %><option value="<%= t.name %>"></option><% }) %>
+            </datalist>
+          </label>
+          <label>Role
+            <input type="text" name="role" value="<%= editingVoice.role || '' %>" placeholder="Lead Artist" />
+          </label>
+        </div>
+
+        <label>Video link <span class="hint">YouTube, Vimeo, Google Drive or a direct .mp4</span>
+          <input type="url" name="videoUrl" value="<%= editingVoice.videoUrl || '' %>" placeholder="https://youtu.be/..." />
+        </label>
+
+        <label>What they love about it <span class="hint">shown as a quote beside the video</span>
+          <textarea name="quote" rows="5" placeholder="The moment the fog system finally worked, the whole game changed character…"><%= editingVoice.quote || '' %></textarea>
+        </label>
+
+        <label>Photo link <span class="hint">optional — used as the video thumbnail and their avatar</span>
+          <input type="url" name="photoUrl" value="<%= editingVoice.photoUrl || '' %>" placeholder="https://i.imgur.com/xxxx.jpg" />
+        </label>
+      </form>
+
+      <div class="form-save-bar">
+        <span class="muted small">A clip needs a game and a name; video and quote are both optional.</span>
+        <button type="submit" form="voiceForm" class="btn btn-primary">
+          <%= editingVoice.id ? 'Save clip' : 'Add clip' %>
+        </button>
+      </div>
+    <% } %>
+
+    <% /* ================= WISHLIST ================= */ %>
+    <% if (tab === 'wishlist') { %>
+      <div class="admin-head-row">
+        <h1>Wishlist signups (<%= wishlist.length %>)</h1>
+        <a href="<%= adminPath %>/wishlist/export.csv" class="btn btn-solid btn-sm">Export CSV</a>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><span class="stat-num"><%= overall.total %></span><span class="stat-label">Unique people</span></div>
+        <div class="stat-card"><span class="stat-num"><%= overall.contactable %></span><span class="stat-label">Agreed to be contacted</span></div>
+        <div class="stat-card"><span class="stat-num"><%= overall.withComment %></span><span class="stat-label">Left a comment</span></div>
+        <div class="stat-card"><span class="stat-num"><%= overall.repeatAttempts %></span><span class="stat-label">Repeat attempts blocked</span></div>
+      </div>
+
+      <p class="muted small" style="margin:-30px 0 30px">
+        Every number above is one de-duplicated person. Signing up twice with the same address
+        (including gmail "dot" and "+tag" tricks) never inflates the count — it's logged as a
+        <strong>repeat attempt</strong> on the original entry instead, and if they added new details
+        the second time, those get merged in. <strong><%= overall.contactable %></strong>
+        <%= overall.contactable === 1 ? 'person has' : 'people have' %> explicitly agreed a publisher
+        may contact them to confirm their interest — those are the ones a publisher can actually verify.
+        <% if (overall.flagged) { %>
+          <%= overall.flagged %> address<%= overall.flagged === 1 ? ' is' : 'es are' %> flagged as
+          disposable-inbox services, shown but never hidden from you.
+        <% } %>
+      </p>
+
+      <% if (!groups.length) { %>
+        <p class="muted">No signups yet.</p>
+      <% } %>
+
+      <% groups.forEach(function(grp){ %>
+        <details class="wishlist-group" <%= grp.count ? 'open' : '' %>>
+          <summary>
+            <span class="wg-title">
+              <% if (grp.game.slug) { %>
+                <a href="<%= adminPath %>/games/<%= grp.game.id %>/edit"><%= grp.game.title %></a>
+              <% } else { %>
+                <%= grp.game.title %>
+              <% } %>
+              <% if (grp.game.statusLabel) { %><span class="badge status-<%= grp.game.status || '' %>"><%= grp.game.statusLabel %></span><% } %>
+              <% if (grp.game.wishlistEnabled === false) { %><span class="badge status-archived">Wishlist closed</span><% } %>
+              <% if (grp.orphaned) { %><span class="badge status-archived">Removed</span><% } %>
+            </span>
+            <span class="wg-meta">
+              <strong><%= grp.count %></strong> signup<%= grp.count === 1 ? '' : 's' %>
+              <% if (grp.duplicateAttempts) { %> &middot; <span class="badge-dup"><%= grp.duplicateAttempts %> repeat attempt<%= grp.duplicateAttempts === 1 ? '' : 's' %></span><% } %>
+              <% if (grp.flaggedCount) { %> &middot; <span class="badge-flag"><%= grp.flaggedCount %> flagged</span><% } %>
+            </span>
+          </summary>
+          <% if (grp.count) { %>
+            <div class="wg-actions">
+              <div class="wg-actions-left">
+                <% if (grp.orphaned) { %>
+                  <span class="muted small">This game was deleted — these signups are just left over.</span>
+                <% } %>
+                <a href="<%= adminPath %>/wishlist/game/<%= grp.game.id %>/report" class="btn btn-solid btn-sm">Publisher report</a>
+                <a href="<%= adminPath %>/wishlist/export.csv?game=<%= grp.game.id %>" class="btn btn-ghost btn-sm">Export this game</a>
+              </div>
+              <form method="POST" action="<%= adminPath %>/wishlist/game/<%= grp.game.id %>/delete"
+                    onsubmit="return confirm('Delete all <%= grp.count %> signup<%= grp.count === 1 ? '' : 's' %> for <%= grp.game.title %>? This cannot be undone.');">
+                <button class="btn btn-danger btn-sm" type="submit">Delete all</button>
+              </form>
+            </div>
+
+            <div class="wg-summary">
+              <span><strong><%= grp.stats.contactable %></strong> contactable</span>
+              <span><strong><%= grp.stats.named %></strong> gave a name</span>
+              <span><strong><%= grp.stats.withComment %></strong> left a comment</span>
+              <% if (grp.stats.countries.length) { %>
+                <span><strong><%= grp.stats.countries.length %></strong>
+                  <%= grp.stats.countries.length === 1 ? 'country' : 'countries' %></span>
+              <% } %>
+            </div>
+          <% } %>
+
+          <div class="wl-people">
+            <% grp.entries.forEach(function(w){ %>
+              <div class="wl-person">
+                <div class="wl-person-head">
+                  <div class="wl-person-id">
+                    <span class="wl-person-name"><%= w.name || 'No name given' %></span>
+                    <a class="wl-person-email" href="mailto:<%= w.email %>"><%= w.email %></a>
+                  </div>
+                  <div class="wl-person-badges">
+                    <% if (w.contactConsent) { %>
+                      <span class="badge-consent" title="This person ticked the box agreeing a publisher may contact them">OK to contact</span>
+                    <% } %>
+                    <% if (w.flagged) { %>
+                      <span class="badge-flag" title="Address belongs to a known disposable/throwaway email service">disposable</span>
+                    <% } %>
+                    <% if (w.duplicateAttempts) { %>
+                      <span class="badge-dup" title="Tried to sign up again — counted once">&times;<%= w.duplicateAttempts + 1 %> tries</span>
+                    <% } %>
+                  </div>
+                </div>
+
+                <% if (w.comment) { %>
+                  <blockquote class="wl-person-comment"><%= w.comment %></blockquote>
+                <% } %>
+
+                <dl class="wl-person-facts">
+                  <% if (w.country) { %><div><dt>Country</dt><dd><%= w.country %></dd></div><% } %>
+                  <% if (w.platform) { %><div><dt>Plays on</dt><dd><%= w.platform %></dd></div><% } %>
+                  <% if (w.source) { %><div><dt>Found us via</dt><dd><%= w.source %></dd></div><% } %>
+                  <div><dt>Signed up</dt><dd><%= new Date(w.date).toLocaleString() %></dd></div>
+                  <% if (w.updatedAt) { %>
+                    <div><dt>Details added</dt><dd><%= new Date(w.updatedAt).toLocaleString() %></dd></div>
+                  <% } %>
+                </dl>
+
+                <div class="wl-person-actions">
+                  <form method="POST" action="<%= adminPath %>/wishlist/<%= w.id %>/delete"
+                        onsubmit="return confirm('Remove <%= w.email %> from the wishlist?');">
+                    <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
+                  </form>
+                </div>
+              </div>
+            <% }) %>
+            <% if (!grp.entries.length) { %>
+              <p class="muted" style="padding:0 24px 20px;margin:0">Wishlist is open, but no one has signed up yet.</p>
+            <% } %>
+          </div>
+        </details>
+      <% }) %>
+    <% } %>
+
+    <% /* ================= SETTINGS ================= */ %>
+    <% if (tab === 'settings') { %>
+      <h1>Settings</h1>
+
+      <div class="admin-subsection" style="margin-top:24px;border-top:0;padding-top:0">
+        <h2>Studio info</h2>
+        <form method="POST" action="<%= adminPath %>/settings/studio" class="admin-form">
+          <div class="form-grid">
+            <label>Studio name<input type="text" name="name" value="<%= studio.name %>" /></label>
+            <label>Contact email<input type="email" name="email" value="<%= studio.email %>" /></label>
+          </div>
+          <label>Tagline <span class="hint">the huge headline on the homepage</span>
+            <input type="text" name="tagline" value="<%= studio.tagline %>" />
+          </label>
+          <label>Hero line <span class="hint">the line under the studio name on the homepage — leave blank to use the tagline</span>
+            <input type="text" name="heroLine" value="<%= studio.heroLine || '' %>" placeholder="<%= studio.tagline || 'We put the fun in games' %>" />
+          </label>
+          <label>Homepage pitch<textarea name="pitch" rows="3"><%= studio.pitch %></textarea></label>
+          <label>Studio story (About page + homepage)<textarea name="story" rows="6"><%= studio.story %></textarea></label>
+
+          <fieldset class="fieldset">
+            <legend>Being straight with people</legend>
+            <p class="hint" style="margin:0">
+              The homepage has a "Where we actually are" section. Leave this blank and it writes
+              itself honestly from your real data — how many projects you have and how many have
+              shipped. Fill it in to say it in your own words instead.
+            </p>
+            <label>Your version <span class="hint">optional</span>
+              <textarea name="honesty" rows="4" placeholder="We're two people and a lot of borrowed time. Nothing has shipped yet…"><%= studio.honesty || '' %></textarea>
+            </label>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <legend>Goals</legend>
+            <p class="hint" style="margin:0">
+              One goal per line. Add a <code>|</code> to give it a sentence of detail:<br />
+              <code>Ship HOME | Get the first game finished and out, not perfect.</code><br />
+              Leave this empty and the goals section simply doesn't appear — better than showing
+              ambitions you haven't decided on yet.
+            </p>
+            <label>Goals intro <span class="hint">optional line above the list</span>
+              <input type="text" name="goalsIntro" value="<%= studio.goalsIntro || '' %>" placeholder="Where we're trying to get to, in order." />
+            </label>
+            <label>The goals
+              <textarea name="goals" rows="6" placeholder="Ship HOME | Finish the first game and get it in players' hands.&#10;Build the community | Grow a group of people who actually want the next one.&#10;Find a publisher | Prove the demand is real, then go looking."><%= (studio.goals || []).map(function (g) { return g.detail ? g.label + ' | ' + g.detail : g.label; }).join('\n') %></textarea>
+            </label>
+          </fieldset>
+
+          <div class="form-grid">
+            <label>X / Twitter URL<input type="url" name="x" value="<%= studio.socials ? studio.socials.x : '' %>" /></label>
+            <label>Discord invite URL<input type="url" name="discord" value="<%= studio.socials ? studio.socials.discord : '' %>" /></label>
+            <label>YouTube URL<input type="url" name="youtube" value="<%= studio.socials ? studio.socials.youtube : '' %>" /></label>
+            <label>Instagram URL<input type="url" name="instagram" value="<%= studio.socials ? studio.socials.instagram : '' %>" /></label>
+          </div>
+          <button type="submit" class="btn btn-primary">Save studio info</button>
+        </form>
+      </div>
+
+      <div class="admin-subsection">
+        <h2>Change password</h2>
+        <form method="POST" action="<%= adminPath %>/settings/password" class="admin-form">
+          <label>Current password<input type="password" name="currentPassword" required /></label>
+          <div class="form-grid">
+            <label>New password<input type="password" name="newPassword" required minlength="8" /></label>
+            <label>Confirm new password<input type="password" name="confirmPassword" required minlength="8" /></label>
+          </div>
+          <button type="submit" class="btn btn-primary">Update password</button>
+        </form>
+      </div>
+    <% } %>
+
+  </main>
+</div>
+<script src="/js/main.js"></script>
+<script>
+  // Pricing is only meaningful for a released game; the price box also only
+  // makes sense when "Paid" is picked. Keep the form honest about both.
+  (function () {
+    var statusSelect = document.getElementById('statusSelect');
+    var pricingControls = document.getElementById('pricingControls');
+    var pricingLockNote = document.getElementById('pricingLockNote');
+    var priceField = document.getElementById('priceField');
+    var wishlistToggle = document.getElementById('wishlistToggle');
+    if (!statusSelect || !pricingControls) return;
+
+    function syncPrice() {
+      var paid = document.querySelector('input[name=pricingType]:checked');
+      priceField.style.display = paid && paid.value === 'paid' ? 'flex' : 'none';
+    }
+
+    function syncStatus() {
+      var released = statusSelect.value === 'released';
+      pricingControls.style.display = released ? 'block' : 'none';
+      pricingLockNote.style.display = released ? 'none' : 'block';
+      if (released) syncPrice();
+    }
+
+    statusSelect.addEventListener('change', function () {
+      syncStatus();
+      // Sensible default: released games sell, everything else collects wishlists.
+      if (wishlistToggle) wishlistToggle.checked = statusSelect.value !== 'released';
+    });
+    document.querySelectorAll('input[name=pricingType]').forEach(function (r) {
+      r.addEventListener('change', syncPrice);
+    });
+
+    syncStatus();
+  })();
+</script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

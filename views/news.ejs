@@ -1,0 +1,67 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <span class="ghost-type" aria-hidden="true">News</span>
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Newsroom</p>
+      <h2>News &amp; media</h2>
+      <p class="lead">Announcements, updates and things worth showing off. Say what you think — comments are open.</p>
+    </div>
+
+    <% if (usedCategories.length > 1 || activeCategory) { %>
+      <div class="devlog-filters">
+        <a href="/news" class="filter-chip <%= activeCategory ? '' : 'is-active' %>">Everything</a>
+        <% usedCategories.forEach(function (key) { %>
+          <a href="/news?category=<%= key %>"
+             class="filter-chip <%= activeCategory === key ? 'is-active' : '' %>"><%= categories[key] %></a>
+        <% }) %>
+      </div>
+    <% } %>
+
+    <% if (!posts.length) { %>
+      <p class="muted">Nothing posted yet — check back soon.</p>
+    <% } %>
+
+    <div class="news-grid">
+      <% posts.forEach(function (p) { %>
+        <article class="news-card" id="post-<%= p.id %>">
+          <a class="news-card-media" href="/news/<%= p.id %>">
+            <% if (p.cover) { %>
+              <img src="<%= p.cover.src %>" alt="" loading="lazy" />
+            <% } else if (p.hasVideo) { %>
+              <span class="media-empty devlog-video-flag">
+                <svg width="30" height="34" viewBox="0 0 12 14" fill="currentColor" aria-hidden="true"><path d="M0 0l12 7-12 7z"/></svg>
+              </span>
+            <% } else { %>
+              <span class="media-empty"><%- include('partials/logo', { id: 'nw' + p.id, size: 40 }) %></span>
+            <% } %>
+            <span class="news-cat"><%= p.categoryLabel %></span>
+          </a>
+
+          <div class="news-card-body">
+            <div class="devlog-meta">
+              <time datetime="<%= p.dateInput %>"><%= p.dateLabel %></time>
+              <% if (p.gameSlug) { %>
+                <span class="devlog-dot">·</span>
+                <a class="devlog-game" href="/games/<%= p.gameSlug %>"><%= p.gameTitle %></a>
+              <% } %>
+            </div>
+
+            <h3><a href="/news/<%= p.id %>"><%= p.title %></a></h3>
+            <p><%= p.excerpt %><%= p.body && p.body.length > 190 ? '…' : '' %></p>
+
+            <div class="news-card-foot">
+              <%- include('partials/reactions', { post: p, compact: true }) %>
+              <a href="/news/<%= p.id %>#comments" class="news-comment-count">
+                <%= p.commentCount %> comment<%= p.commentCount === 1 ? '' : 's' %>
+              </a>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

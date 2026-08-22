@@ -1,0 +1,45 @@
+<%- include('partials/header') %>
+
+<section class="section">
+  <span class="ghost-type" aria-hidden="true">Pack</span>
+  <div class="container">
+    <div class="section-head">
+      <p class="eyebrow">Who We Are</p>
+      <h2>The pack</h2>
+      <p class="lead">The people behind <%= studio.name %>.</p>
+    </div>
+
+    <div class="team-grid">
+      <% team.forEach(function(member) { %>
+        <div class="team-card">
+          <div class="team-photo-wrap">
+            <% if (member.photo) { %>
+              <img src="/uploads/team/<%= member.photo %>" alt="<%= member.name %>" style="object-position:<%= (member.photoFocus && member.photoFocus.x != null ? member.photoFocus.x : 50) %>% <%= (member.photoFocus && member.photoFocus.y != null ? member.photoFocus.y : 50) %>%" />
+            <% } else { %>
+              <span class="team-initials"><%= member.name.split(' ').map(function(n){return n[0]}).join('').slice(0,2).toUpperCase() %></span>
+            <% } %>
+          </div>
+          <div class="team-body">
+            <h3><%= member.name %></h3>
+            <p class="tag"><%= member.role %></p>
+            <p><%= member.bio %></p>
+            <% var ms = member.socials || {}; %>
+            <% if (ms.x || ms.linkedin || ms.itch) { %>
+              <div class="team-socials">
+                <% if (ms.x) { %><a href="<%= ms.x %>" target="_blank" rel="noopener">X</a><% } %>
+                <% if (ms.linkedin) { %><a href="<%= ms.linkedin %>" target="_blank" rel="noopener">LinkedIn</a><% } %>
+                <% if (ms.itch) { %><a href="<%= ms.itch %>" target="_blank" rel="noopener">itch.io</a><% } %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <% if (!team.length) { %>
+      <p class="muted">No team members added yet — add some from the admin panel.</p>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

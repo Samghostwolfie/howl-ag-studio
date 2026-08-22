@@ -1,0 +1,78 @@
+[
+  {
+    "id": "t_1787130299532",
+    "name": "Atiba Ifeoluwa",
+    "role": "Founder/Lead",
+    "bio": "",
+    "photo": "img-20260203-wa0004-1787130299524-131407289.jpg",
+    "socials": {
+      "x": "",
+      "linkedin": "https://www.linkedin.com/in/atiba-ifeoluwa-6b9124298/",
+      "itch": "https://el-samuel.itch.io/"
+    },
+    "photoFocus": {
+      "x": 47.2,
+      "y": 11.2
+    }
+  },
+  {
+    "id": "t_1787130548782",
+    "name": "Massenburg Studios",
+    "role": "Music Composer",
+    "bio": "",
+    "photo": "",
+    "socials": {
+      "x": "",
+      "linkedin": "",
+      "itch": ""
+    }
+  },
+  {
+    "id": "t_1787130591679",
+    "name": "Charles W. Morton",
+    "role": "Voice Actor",
+    "bio": "",
+    "photo": "",
+    "socials": {
+      "x": "",
+      "linkedin": "",
+      "itch": ""
+    }
+  },
+  {
+    "id": "t_1787130622378",
+    "name": "Jamsies",
+    "role": "Audio engineer",
+    "bio": "",
+    "photo": "",
+    "socials": {
+      "x": "",
+      "linkedin": "",
+      "itch": ""
+    }
+  },
+  {
+    "id": "t_1787130670375",
+    "name": "Tres <(°~°)>",
+    "role": "Writer",
+    "bio": "",
+    "photo": "",
+    "socials": {
+      "x": "",
+      "linkedin": "",
+      "itch": ""
+    }
+  },
+  {
+    "id": "t_1787130717615",
+    "name": "Alex Jewson",
+    "role": "Voice Actor",
+    "bio": "",
+    "photo": "",
+    "socials": {
+      "x": "",
+      "linkedin": "",
+      "itch": ""
+    }
+  }
+]
