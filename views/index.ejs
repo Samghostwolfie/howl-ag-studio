@@ -149,7 +149,7 @@
       <div class="feat-grid">
         <a class="feat-art" href="/games/<%= featured.slug %>">
           <% if (featured.coverImage) { %>
-            <img src="/uploads/covers/<%= featured.coverImage %>" alt="<%= featured.title %> key art"
+            <img src="`<%= resolveUploadUrl('covers', featured.coverImage) %>`" alt="<%= featured.title %> key art"
                  style="object-position:<%= featured.coverPos %>" />
           <% } else { %>
             <span class="media-empty"><%- include('partials/logo', { id: 'feat', size: 72 }) %></span>
@@ -195,7 +195,7 @@
           <a class="game-card" href="/games/<%= game.slug %>">
             <div class="gc-media">
               <% if (game.coverImage) { %>
-                <img src="/uploads/covers/<%= game.coverImage %>" alt="<%= game.title %> cover art"
+                <img src="`<%= resolveUploadUrl('covers', game.coverImage) %>`" alt="<%= game.title %> cover art"
                      style="object-position:<%= game.coverPos %>" loading="lazy" />
               <% } else { %>
                 <span class="media-empty"><%- include('partials/logo', { id: 'gc' + game.id, size: 40 }) %></span>

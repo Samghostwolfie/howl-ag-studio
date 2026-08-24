@@ -84,7 +84,7 @@
         <tbody>
           <% games.forEach(function(g){ %>
             <tr>
-              <td><% if (g.coverImage) { %><img class="thumb" src="/uploads/covers/<%= g.coverImage %>" alt="" /><% } else { %>—<% } %></td>
+              <td><% if (g.coverImage) { %><img class="thumb" src="`<%= resolveUploadUrl('covers', g.coverImage) %>`" alt="" /><% } else { %>—<% } %></td>
               <td><%= g.title %></td>
               <td><span class="badge status-<%= g.status %>"><%= g.status %></span></td>
               <td><%= g.pricingType === 'free' ? 'Free' : '$' + Number(g.price).toFixed(2) %></td>
@@ -254,7 +254,7 @@
 
           <% if (editingGame.coverImage) { %>
             <%- include('../partials/focus-picker', {
-                  src: '/uploads/covers/' + editingGame.coverImage,
+                  src: resolveUploadUrl('covers', editingGame.coverImage),
                   prefix: 'cover',
                   focus: editingGame.coverFocus || { x: 50, y: 50 },
                   shapes: [
@@ -292,7 +292,7 @@
               <div class="admin-shots">
                 <% editingGame.screenshots.forEach(function(s) { %>
                   <div class="admin-shot">
-                    <img src="/uploads/screenshots/<%= s %>" alt="" />
+                    <img src="`<%= resolveUploadUrl('screenshots', s) %>`" alt="" />
                     <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/screenshots/<%= s %>/delete" onsubmit="return confirm('Remove this screenshot?');">
                       <button class="btn btn-danger btn-sm btn-block" type="submit">Remove</button>
                     </form>
@@ -346,7 +346,7 @@
             <tr>
               <td>
                 <% if (t.photo) { %>
-                  <img class="thumb round" src="/uploads/team/<%= t.photo %>" alt=""
+                  <img class="thumb round" src="`<%= resolveUploadUrl('team', t.photo) %>`" alt=""
                        style="object-position:<%= (t.photoFocus && t.photoFocus.x != null ? t.photoFocus.x : 50) %>% <%= (t.photoFocus && t.photoFocus.y != null ? t.photoFocus.y : 50) %>%" />
                 <% } else { %>—<% } %>
               </td>
@@ -413,7 +413,7 @@
               Put the marker on the face and it stays in shot at every size.
             </p>
             <%- include('../partials/focus-picker', {
-                  src: '/uploads/team/' + editingMember.photo,
+                  src: resolveUploadUrl('team', editingMember.photo),
                   prefix: '',
                   focus: editingMember.photoFocus || { x: 50, y: 50 },
                   shapes: [

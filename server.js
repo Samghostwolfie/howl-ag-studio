@@ -137,6 +137,8 @@ app.use((req, res, next) => {
   res.locals.publicCommentMax = PUBLIC_COMMENT_MAX;
   res.locals.newsCategories = CATEGORIES;
   res.locals.adminPath = A;
+  // Make resolveUploadUrl available in all EJS templates
+  res.locals.resolveUploadUrl = resolveUploadUrl;
   next();
 });
 
@@ -166,14 +168,14 @@ function normalizeGame(g) {
 
   // Media gallery: videos first, then cover, then uploaded shots, then linked images.
   const media = [];
-  const posterFor = g.coverImage ? '/uploads/covers/' + g.coverImage : '';
+  const posterFor = g.coverImage ? resolveUploadUrl('covers', g.coverImage) : '';
 
   [g.trailerUrl, ...(g.videoLinks || [])].filter(Boolean).forEach((v) => {
     const resolved = resolveVideo(v);
     if (resolved) media.push({ type: 'video', mode: resolved.mode, src: resolved.src, poster: posterFor });
   });
   if (g.coverImage) media.push({ type: 'image', mode: 'image', src: posterFor });
-  (g.screenshots || []).forEach((s) => media.push({ type: 'image', mode: 'image', src: '/uploads/screenshots/' + s }));
+  (g.screenshots || []).forEach((s) => media.push({ type: 'image', mode: 'image', src: resolveUploadUrl('screenshots', s) }));
   (g.imageLinks || []).forEach((u) => {
     const src = normalizeImageUrl(u);
     if (src) media.push({ type: 'image', mode: 'image', src });

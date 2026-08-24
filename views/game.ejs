@@ -137,7 +137,7 @@
     <aside class="info-panel">
       <div class="info-capsule">
         <% if (game.coverImage) { %>
-          <img src="/uploads/covers/<%= game.coverImage %>" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
+          <img src="`<%= resolveUploadUrl('covers', game.coverImage) %>`" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
         <% } else { %>
           <span class="media-empty"><%- include('partials/logo', { id: 'cap', size: 44 }) %></span>
         <% } %>
@@ -213,7 +213,7 @@
             <a class="mini-game" href="/games/<%= g.slug %>">
               <span class="mini-thumb">
                 <% if (g.coverImage) { %>
-                  <img src="/uploads/covers/<%= g.coverImage %>" alt="" style="object-position:<%= g.coverPos %>" />
+                  <img src="`<%= resolveUploadUrl('covers', g.coverImage) %>`" alt="" style="object-position:<%= g.coverPos %>" />
                 <% } else { %>
                   <span class="media-empty"></span>
                 <% } %>
