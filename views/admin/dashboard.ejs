@@ -346,7 +346,7 @@
             <tr>
               <td>
                 <% if (t.photo) { %>
-                  <img class="thumb round" src="`<%= resolveUploadUrl('team', t.photo) %>`" alt=""
+                  <img class="thumb round" src="<%= t.photo %>" alt=""
                        style="object-position:<%= (t.photoFocus && t.photoFocus.x != null ? t.photoFocus.x : 50) %>% <%= (t.photoFocus && t.photoFocus.y != null ? t.photoFocus.y : 50) %>%" />
                 <% } else { %>—<% } %>
               </td>
@@ -366,7 +366,7 @@
 
       <div class="admin-subsection">
         <h2>Add team member</h2>
-        <form method="POST" action="<%= adminPath %>/team" enctype="multipart/form-data" class="admin-form">
+        <form method="POST" action="<%= adminPath %>/team" class="admin-form">
           <div class="form-grid">
             <label>Name<input type="text" name="name" required /></label>
             <label>Role<input type="text" name="role" placeholder="Lead Artist" /></label>
@@ -377,8 +377,8 @@
             <label>LinkedIn URL<input type="url" name="linkedin" /></label>
             <label>itch.io URL<input type="url" name="itch" /></label>
           </div>
-          <label>Photo <span class="hint">you can position it after saving</span>
-            <input type="file" name="photo" accept="image/*" />
+          <label>Photo URL <span class="hint">paste a direct image link (Google Drive, Imgur, Discord CDN, etc.)</span>
+            <input type="url" name="photo" placeholder="https://i.imgur.com/example.jpg" />
           </label>
           <button type="submit" class="btn btn-primary">Add team member</button>
         </form>
@@ -392,7 +392,7 @@
         <a href="<%= adminPath %>/team" class="back-link">&larr; All team</a>
       </div>
 
-      <form id="teamMemberForm" method="POST" action="<%= adminPath %>/team/<%= editingMember.id %>" enctype="multipart/form-data" class="admin-form">
+      <form id="teamMemberForm" method="POST" action="<%= adminPath %>/team/<%= editingMember.id %>" class="admin-form">
         <div class="form-grid">
           <label>Name<input type="text" name="name" value="<%= editingMember.name %>" required /></label>
           <label>Role<input type="text" name="role" value="<%= editingMember.role || '' %>" placeholder="Lead Artist" /></label>
@@ -404,37 +404,13 @@
           <label>LinkedIn URL<input type="url" name="linkedin" value="<%= ms.linkedin || '' %>" /></label>
           <label>itch.io URL<input type="url" name="itch" value="<%= ms.itch || '' %>" /></label>
         </div>
-
-        <fieldset class="fieldset">
-          <legend>Photo framing</legend>
-          <% if (editingMember.photo) { %>
-            <p class="hint" style="margin:0">
-              The team card crops to a square, so a wide or tall photo loses its edges.
-              Put the marker on the face and it stays in shot at every size.
-            </p>
-            <%- include('../partials/focus-picker', {
-                  src: resolveUploadUrl('team', editingMember.photo),
-                  prefix: '',
-                  focus: editingMember.photoFocus || { x: 50, y: 50 },
-                  shapes: [
-                    { label: 'Team card', ratio: '1 / 1' },
-                    { label: 'Round thumb', ratio: '1 / 1', round: true }
-                  ]
-                }) %>
-          <% } else { %>
-            <p class="hint" style="margin:0">No photo yet — upload one below, then position it.</p>
-          <% } %>
-
-          <label>
-            <%= editingMember.photo ? 'Replace photo' : 'Upload photo' %>
-            <span class="hint">a new picture resets the framing to centre</span>
-            <input type="file" name="photo" accept="image/*" />
-          </label>
-        </fieldset>
+        <label>Photo URL <span class="hint">paste a direct image link — Google Drive, Imgur, Discord CDN, etc.</span>
+          <input type="url" name="photo" value="<%= editingMember.photo || '' %>" placeholder="https://i.imgur.com/example.jpg" />
+        </label>
       </form>
 
       <div class="form-save-bar">
-        <span class="muted small">Framing and details save together.</span>
+        <span class="muted small">Changes save together.</span>
         <button type="submit" form="teamMemberForm" class="btn btn-primary">Save changes</button>
       </div>
     <% } %>

@@ -948,11 +948,9 @@ app.get(`${A}/team/:id/edit`, requireAuth, (req, res) => {
   });
 });
 
-app.post(`${A}/team`, requireAuth,
-  handleUploadErrors(uploadTeamPhoto.single('photo'), `${A}/team`, 'team'),
-  (req, res) => {
+app.post(`${A}/team`, requireAuth, (req, res) => {
   const team = db.read('team', []);
-  const { name, role, bio, x, linkedin, itch } = req.body;
+  const { name, role, bio, x, linkedin, itch, photo } = req.body;
   if (!name || !name.trim()) {
     req.flash('error', 'Name is required.');
     return res.redirect(`${A}/team`);
@@ -963,23 +961,15 @@ app.post(`${A}/team`, requireAuth,
     name: name.trim(),
     role: (role || '').trim(),
     bio: (bio || '').trim(),
-    photo: req.file ? req.file.filename : '',
-    photoFocus: parseFocus(req.body),
+    photo: (photo || '').trim(),
     socials: { x: (x || '').trim(), linkedin: (linkedin || '').trim(), itch: (itch || '').trim() },
   });
   db.write('team', team);
-  // Straight to the editor when there's a photo — that's where the framing gets set.
-  if (req.file) {
-    req.flash('success', 'Team member added. Drag the marker to frame their photo.');
-    return res.redirect(`${A}/team/${id}/edit`);
-  }
   req.flash('success', 'Team member added.');
   res.redirect(`${A}/team`);
 });
 
-app.post(`${A}/team/:id`, requireAuth,
-  handleUploadErrors(uploadTeamPhoto.single('photo'), (req) => `${A}/team/${req.params.id}/edit`, 'team'),
-  (req, res) => {
+app.post(`${A}/team/:id`, requireAuth, (req, res) => {
   const team = db.read('team', []);
   const member = team.find((t) => t.id === req.params.id);
   if (!member) {
@@ -987,7 +977,7 @@ app.post(`${A}/team/:id`, requireAuth,
     return res.redirect(`${A}/team`);
   }
 
-  const { name, role, bio, x, linkedin, itch } = req.body;
+  const { name, role, bio, x, linkedin, itch, photo } = req.body;
   if (!name || !name.trim()) {
     req.flash('error', 'Name is required.');
     return res.redirect(`${A}/team/${req.params.id}/edit`);
@@ -997,17 +987,9 @@ app.post(`${A}/team/:id`, requireAuth,
   member.role = (role || '').trim();
   member.bio = (bio || '').trim();
   member.socials = { x: (x || '').trim(), linkedin: (linkedin || '').trim(), itch: (itch || '').trim() };
-  member.photoFocus = parseFocus(req.body);
-
-  // A new upload replaces the old file; no upload leaves the existing photo alone.
-  if (req.file) {
-    const old = member.photo;
-    member.photo = req.file.filename;
-    if (old && old !== member.photo) {
-      fs.unlink(path.join(__dirname, 'public', 'uploads', 'team', old), () => {});
-    }
-    // A brand new picture makes the old framing meaningless — start centred again.
-    if (!req.body.keepFocus) member.photoFocus = { x: 50, y: 50 };
+  // Update photo URL if provided; leave unchanged if field is empty
+  if (photo && photo.trim()) {
+    member.photo = photo.trim();
   }
 
   db.write('team', team);
