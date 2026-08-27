@@ -30,6 +30,7 @@
       <a href="<%= adminPath %>/feedback" class="<%= tab === 'feedback' ? 'active' : '' %>">Feedback</a>
       <a href="<%= adminPath %>/team" class="<%= tab === 'team' ? 'active' : '' %>">Team</a>
       <a href="<%= adminPath %>/wishlist" class="<%= tab === 'wishlist' ? 'active' : '' %>">Wishlist</a>
+      <a href="<%= adminPath %>/donations" class="<%= tab === 'donations' ? 'active' : '' %>">Fundraisers &amp; Donations</a>
       <a href="<%= adminPath %>/settings" class="<%= tab === 'settings' ? 'active' : '' %>">Settings</a>
     </nav>
     <div class="admin-sidebar-footer">
@@ -229,6 +230,23 @@
             automatically when <code>STRIPE_SECRET_KEY</code> is set in <code>.env</code>; otherwise "Buy now"
             sends players to the link above.
           </p>
+        <fieldset class="fieldset">
+          <legend>Crowdfunding &amp; Fundraiser Goal</legend>
+          <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; cursor:pointer;">
+            <input type="checkbox" name="fundraiserEnabled" <%= (editingGame.fundraiser && editingGame.fundraiser.enabled) || editingGame.fundraiserEnabled ? 'checked' : '' %> />
+            <span style="font-weight:600; color:var(--white);">Enable Crowdfunding / Fundraiser for this game</span>
+          </label>
+          <div class="form-grid">
+            <label>Funding Goal (USD $)
+              <input type="number" name="fundraiserGoal" min="0" step="1" value="<%= (editingGame.fundraiser && editingGame.fundraiser.goal) || editingGame.fundraiserGoal || '' %>" placeholder="5000" />
+            </label>
+            <label>Fundraiser Title
+              <input type="text" name="fundraiserTitle" value="<%= (editingGame.fundraiser && editingGame.fundraiser.title) || editingGame.fundraiserTitle || '' %>" placeholder="Development Fundraiser" />
+            </label>
+          </div>
+          <label>Fundraiser Pitch / Goal Description
+            <textarea name="fundraiserPitch" rows="3" placeholder="Explain what the funds will be used for (e.g. voice acting, sound design, additional character art)..."><%= (editingGame.fundraiser && editingGame.fundraiser.pitch) || editingGame.fundraiserPitch || '' %></textarea>
+          </label>
         </fieldset>
 
         <fieldset class="fieldset">
@@ -1025,6 +1043,156 @@
           </div>
         </details>
       <% }) %>
+    <% } %>
+
+    <% /* ================= FUNDRAISERS & DONATIONS ================= */ %>
+    <% if (tab === 'donations') { %>
+      <div class="admin-head-row">
+        <h1>Fundraisers &amp; Donations (<%= donations.length %>)</h1>
+      </div>
+
+      <%
+        var avgDonation = donations.length ? (totalRaised / donations.length) : 0;
+        var activeFundraisers = games.filter(function(g){ return g.fundraiser && g.fundraiser.enabled; }).length;
+      %>
+      <div class="stat-grid">
+        <div class="stat-card"><span class="stat-num">$<%= Number(totalRaised).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) %></span><span class="stat-label">Total Raised (USD)</span></div>
+        <div class="stat-card"><span class="stat-num"><%= donations.length %></span><span class="stat-label">Total Contributions</span></div>
+        <div class="stat-card"><span class="stat-num">$<%= Number(avgDonation).toFixed(2) %></span><span class="stat-label">Average Donation</span></div>
+        <div class="stat-card"><span class="stat-num"><%= activeFundraisers %></span><span class="stat-label">Active Game Fundraisers</span></div>
+      </div>
+
+      <!-- Per-game progress overview -->
+      <div class="admin-subsection" style="margin-top:20px;">
+        <h2>Game Fundraiser Goals</h2>
+        <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+          <% byGame.forEach(function(bg){ %>
+            <div class="stat-card" style="text-align:left; padding:20px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                <strong style="font-size:1.1rem; color:var(--white);"><%= bg.game.title %></strong>
+                <% if (bg.game.fundraiser && bg.game.fundraiser.enabled) { %>
+                  <span class="badge status-released" style="font-size:0.7rem;">Active</span>
+                <% } else { %>
+                  <span class="badge status-archived" style="font-size:0.7rem;">Disabled</span>
+                <% } %>
+              </div>
+              <div style="margin:10px 0 6px;">
+                <div style="background:var(--panel-3); height:8px; border-radius:4px; overflow:hidden;">
+                  <div style="background:var(--acid); width:<%= bg.percent %>%; height:100%;"></div>
+                </div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.8rem; color:var(--grey-dim);">
+                <span>$<%= Number(bg.raised).toFixed(2) %> raised</span>
+                <span><%= bg.goal > 0 ? '$' + Number(bg.goal).toLocaleString() + ' goal (' + bg.percent + '%)' : 'No goal set' %></span>
+              </div>
+              <div style="margin-top:8px; font-size:0.75rem; color:var(--grey);">
+                <strong><%= bg.count %></strong> backer<%= bg.count === 1 ? '' : 's' %>
+                &middot; <a href="<%= adminPath %>/games/<%= bg.game.id %>/edit" class="accent">Edit fundraiser settings</a>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <!-- Log manual donation -->
+      <div class="admin-subsection">
+        <h2>Log a manual / external donation</h2>
+        <form method="POST" action="<%= adminPath %>/donations" class="admin-form">
+          <div class="form-grid-3">
+            <label>Game
+              <select name="gameId" required>
+                <% games.forEach(function(g){ %>
+                  <option value="<%= g.id %>"><%= g.title %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Amount (USD $)
+              <input type="number" name="amount" min="0.01" step="0.01" placeholder="25.00" required />
+            </label>
+            <label>Payment Source
+              <select name="paymentMethod">
+                <option value="manual">Manual Entry</option>
+                <option value="paypal">PayPal</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="cash">Cash / In Person</option>
+                <option value="stripe">Stripe</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <label>Donor Name
+              <input type="text" name="donorName" placeholder="Donor's name (e.g. Alex M.)" />
+            </label>
+            <label>Donor Email <span class="hint">(kept private, for your records)</span>
+              <input type="email" name="donorEmail" placeholder="donor@email.com" />
+            </label>
+          </div>
+
+          <label>Message / Donor Note
+            <input type="text" name="message" placeholder="Optional backer cheer or project note..." />
+          </label>
+
+          <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; margin: 12px 0 16px; cursor:pointer;">
+            <input type="checkbox" name="isAnonymous" />
+            <span style="font-size:0.88rem; color:var(--white);">Hide name on public page (show as Anonymous Supporter)</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary">Log donation</button>
+        </form>
+      </div>
+
+      <!-- All donations table -->
+      <div class="admin-subsection">
+        <h2>All Donations (<%= donations.length %>)</h2>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Donor</th>
+              <th>Email</th>
+              <th>Amount</th>
+              <th>Game</th>
+              <th>Date</th>
+              <th>Source</th>
+              <th>Message</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% donations.forEach(function(d){ %>
+              <tr>
+                <td>
+                  <strong><%= d.donorName || 'Anonymous' %></strong>
+                  <% if (d.isAnonymous) { %>
+                    <span class="badge-dup" title="Public site shows this donor as Anonymous">Anon publicly</span>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (d.donorEmail) { %>
+                    <a href="mailto:<%= d.donorEmail %>" class="accent"><%= d.donorEmail %></a>
+                  <% } else { %>
+                    <span class="muted">—</span>
+                  <% } %>
+                </td>
+                <td style="color:var(--acid); font-weight:700;">$<%= Number(d.amount).toFixed(2) %></td>
+                <td><%= d.gameTitle || '—' %></td>
+                <td class="muted small"><%= new Date(d.date).toLocaleDateString() %></td>
+                <td><span class="chip" style="font-size:0.65rem;"><%= d.paymentMethod || 'direct' %></span></td>
+                <td class="muted small" style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="<%= d.message || '' %>"><%= d.message || '—' %></td>
+                <td class="row-actions">
+                  <form method="POST" action="<%= adminPath %>/donations/<%= d.id %>/delete" onsubmit="return confirm('Delete this donation record?');">
+                    <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+            <% if (!donations.length) { %>
+              <tr><td colspan="8" class="muted">No donations recorded yet.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
     <% } %>
 
     <% /* ================= SETTINGS ================= */ %>

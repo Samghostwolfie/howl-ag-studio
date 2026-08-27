@@ -23,6 +23,7 @@ const {
   PLATFORMS, SOURCES, COMMENT_MAX, parseDetails, enrich, buildStats,
 } = require('./lib/wishlist');
 const { parseFocus, readFocus, focusToCss } = require('./lib/focus');
+const { sendWishlistConfirmation, sendDonationThankYou } = require('./lib/email');
 const {
   parseDevlog, normalizeDevlog, parseVoice, normalizeVoice, toDateInput,
 } = require('./lib/posts');
@@ -183,6 +184,17 @@ function normalizeGame(g) {
 
   const coverFocus = readFocus(g.coverFocus);
 
+  const fundraiserEnabled = Boolean(g.fundraiserEnabled);
+  const fundraiserGoal = Math.max(0, Number(g.fundraiserGoal) || 0);
+  const fStats = fundraiserStats(g.id, fundraiserGoal);
+  const fundraiser = {
+    enabled: fundraiserEnabled,
+    goal: fundraiserGoal,
+    title: g.fundraiserTitle || 'Development Fundraiser',
+    pitch: g.fundraiserPitch || '',
+    ...fStats,
+  };
+
   return {
     ...g,
     status,
@@ -191,6 +203,7 @@ function normalizeGame(g) {
     isReleased,
     isDemo,
     showPrice: isReleased,
+    fundraiser,
     tags: g.tags || [],
     screenshots: g.screenshots || [],
     imageLinks: g.imageLinks || [],
@@ -222,6 +235,39 @@ function wishlistCountFor(gameId) {
 function withCounts(games) {
   return games.map((g) => ({ ...g, wishlistCount: wishlistCountFor(g.id) }));
 }
+
+function getDonationsRaw() {
+  return db.read('donations', []);
+}
+function getDonations() {
+  return getDonationsRaw();
+}
+function donationsForGame(gameId) {
+  return getDonations().filter((d) => d.gameId === gameId && d.status !== 'cancelled');
+}
+function fundraiserStats(gameId, goalAmount) {
+  const dons = donationsForGame(gameId);
+  const totalRaised = dons.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+  const goal = Math.max(0, Number(goalAmount) || 0);
+  const percentFunded = goal > 0 ? Math.min(100, Math.round((totalRaised / goal) * 100)) : 0;
+  const recentDonors = dons
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 50)
+    .map((d) => ({
+      name: d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Anonymous Supporter'),
+      amount: Number(d.amount) || 0,
+      message: d.message || '',
+      date: d.date,
+    }));
+  return {
+    totalRaised,
+    goal,
+    percentFunded,
+    donorCount: dons.length,
+    recentDonors,
+  };
+}
+
 function uniqueSlug(title, excludeId) {
   const base = slugify(title, { lower: true, strict: true }) || 'game';
   const games = getGames();
@@ -581,8 +627,176 @@ app.post('/games/:slug/wishlist', (req, res) => {
   });
   db.write('wishlist', wishlist);
 
+  const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+  const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
+  sendWishlistConfirmation({
+    to: email.trim(),
+    name: details.name || '',
+    gameTitle: game.title,
+    gameSlug: game.slug,
+    notifyNews: details.notifyNews,
+    notifyDevlog: details.notifyDevlog,
+    siteUrl,
+    studioName,
+  }).catch((err) => console.error('[email] Wishlist confirmation send error:', err.message));
+
   req.flash('success', `You're on the wishlist for ${game.title}! 🐺`);
   res.redirect(req.get('Referer') || `/games/${game.slug}`);
+});
+
+// ---------- fundraiser donation flow ----------
+app.post('/games/:slug/donate', async (req, res) => {
+  const games = getGames();
+  const game = games.find((g) => g.slug === req.params.slug);
+  if (!game) return res.status(404).render('404', { title: 'Not found' });
+
+  if (!game.fundraiser || !game.fundraiser.enabled) {
+    req.flash('error', 'Fundraising is not currently active for this game.');
+    return res.redirect(`/games/${game.slug}`);
+  }
+
+  const { donorName, donorEmail, amount, message, isAnonymous } = req.body;
+  const numAmount = Math.max(1, Number(amount) || 0);
+  if (numAmount < 1) {
+    req.flash('error', 'Please enter a valid donation amount (minimum $1 USD).');
+    return res.redirect(`/games/${game.slug}#fundraiser`);
+  }
+
+  const cleanName = (donorName || '').trim() || 'Anonymous';
+  const cleanEmail = (donorEmail || '').trim();
+  const cleanMsg = (message || '').trim().slice(0, 400);
+  const anon = isAnonymous === 'on' || isAnonymous === 'true';
+  const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+  const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
+
+  // If Stripe is configured, create a Stripe Checkout session
+  if (process.env.STRIPE_SECRET_KEY) {
+    try {
+      // eslint-disable-next-line global-require
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        customer_email: cleanEmail || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `Fundraiser Donation: ${game.title}`,
+                description: game.fundraiser.title || `Community backer contribution for ${game.title}`,
+              },
+              unit_amount: Math.round(numAmount * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        metadata: {
+          type: 'donation',
+          gameId: game.id,
+          gameTitle: game.title,
+          donorName: cleanName,
+          donorEmail: cleanEmail,
+          message: cleanMsg,
+          isAnonymous: String(anon),
+        },
+        success_url: `${siteUrl}/games/${game.slug}/donate/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${siteUrl}/games/${game.slug}#fundraiser`,
+      });
+      return res.redirect(303, session.url);
+    } catch (err) {
+      console.error('[stripe] donation checkout failed, recording directly:', err.message);
+    }
+  }
+
+  // Direct recording (when Stripe is not set up or as direct backer pledge)
+  const donations = getDonationsRaw();
+  const donation = {
+    id: `don_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
+    gameId: game.id,
+    gameTitle: game.title,
+    donorName: cleanName,
+    donorEmail: cleanEmail,
+    amount: numAmount,
+    message: cleanMsg,
+    isAnonymous: anon,
+    date: new Date().toISOString(),
+    paymentMethod: 'direct',
+    status: 'completed',
+  };
+  donations.push(donation);
+  db.write('donations', donations);
+
+  if (cleanEmail && isValidEmail(cleanEmail)) {
+    sendDonationThankYou({
+      to: cleanEmail,
+      donorName: cleanName,
+      gameTitle: game.title,
+      amount: numAmount,
+      siteUrl,
+      studioName,
+    }).catch((err) => console.error('[email] Donation thank-you error:', err.message));
+  }
+
+  req.flash('success', `Thank you so much for backing ${game.title}! 🐺 Your support means everything.`);
+  res.redirect(`/games/${game.slug}#fundraiser`);
+});
+
+app.get('/games/:slug/donate/success', async (req, res) => {
+  const games = getGames();
+  const game = games.find((g) => g.slug === req.params.slug);
+  if (!game) return res.status(404).render('404', { title: 'Not found' });
+
+  const sessionId = req.query.session_id;
+  if (sessionId && process.env.STRIPE_SECRET_KEY) {
+    try {
+      // eslint-disable-next-line global-require
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      if (session && session.payment_status === 'paid') {
+        const meta = session.metadata || {};
+        const donations = getDonationsRaw();
+        const existing = donations.find((d) => d.stripeSessionId === sessionId);
+        if (!existing) {
+          const numAmount = (session.amount_total || 0) / 100;
+          const donation = {
+            id: `don_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
+            gameId: meta.gameId || game.id,
+            gameTitle: meta.gameTitle || game.title,
+            donorName: meta.donorName || (session.customer_details && session.customer_details.name) || 'Anonymous',
+            donorEmail: meta.donorEmail || (session.customer_details && session.customer_details.email) || '',
+            amount: numAmount,
+            message: meta.message || '',
+            isAnonymous: meta.isAnonymous === 'true',
+            date: new Date().toISOString(),
+            paymentMethod: 'stripe',
+            stripeSessionId: sessionId,
+            status: 'completed',
+          };
+          donations.push(donation);
+          db.write('donations', donations);
+
+          if (donation.donorEmail && isValidEmail(donation.donorEmail)) {
+            const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+            const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
+            sendDonationThankYou({
+              to: donation.donorEmail,
+              donorName: donation.donorName,
+              gameTitle: game.title,
+              amount: numAmount,
+              siteUrl,
+              studioName,
+            }).catch((err) => console.error('[email] Donation thank-you error:', err.message));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[stripe] verify donation session failed:', err.message);
+    }
+  }
+
+  req.flash('success', `Thank you so much for backing ${game.title}! 🐺 Your donation was received.`);
+  res.redirect(`/games/${game.slug}#fundraiser`);
 });
 
 // Purchase / download flow — handles free vs paid, with graceful fallbacks.
@@ -767,6 +981,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     pricingType, price, externalStoreUrl, trailerUrl,
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
     imageLinks, videoLinks, wishlistEnabled, coverImage,
+    fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch,
   } = req.body;
 
   if (!title || !title.trim()) {
@@ -795,6 +1010,10 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     pricingType: isReleased && pricingType === 'paid' ? 'paid' : 'free',
     price: isReleased && pricingType === 'paid' ? Math.max(0, Number(price) || 0) : 0,
     wishlistEnabled: wishlistEnabled === 'on' || wishlistEnabled === 'true',
+    fundraiserEnabled: fundraiserEnabled === 'on' || fundraiserEnabled === 'true',
+    fundraiserGoal: Math.max(0, Number(fundraiserGoal) || 0),
+    fundraiserTitle: (fundraiserTitle || '').trim(),
+    fundraiserPitch: (fundraiserPitch || '').trim(),
     externalStoreUrl: (externalStoreUrl || '').trim(),
     coverImage: finalCover,
     coverFocus: parseFocus(req.body, 'cover'),
@@ -833,6 +1052,7 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     pricingType, price, externalStoreUrl, trailerUrl,
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
     imageLinks, videoLinks, wishlistEnabled, coverImage,
+    fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch,
   } = req.body;
 
   if (title && title.trim() && title.trim() !== game.title) {
@@ -853,6 +1073,10 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     pricingType: isReleased && pricingType === 'paid' ? 'paid' : 'free',
     price: isReleased && pricingType === 'paid' ? Math.max(0, Number(price) || 0) : 0,
     wishlistEnabled: wishlistEnabled === 'on' || wishlistEnabled === 'true',
+    fundraiserEnabled: fundraiserEnabled === 'on' || fundraiserEnabled === 'true',
+    fundraiserGoal: Math.max(0, Number(fundraiserGoal) || 0),
+    fundraiserTitle: (fundraiserTitle || '').trim(),
+    fundraiserPitch: (fundraiserPitch || '').trim(),
     imageLinks: linesToArray(imageLinks),
     videoLinks: linesToArray(videoLinks),
     externalStoreUrl: (externalStoreUrl || '').trim(),
@@ -1392,6 +1616,69 @@ app.post(`${A}/wishlist/game/:gameId/delete`, requireAuth, (req, res) => {
   db.write('wishlist', next);
   req.flash('success', removed === 1 ? '1 signup removed.' : `${removed} signups removed.`);
   res.redirect(`${A}/wishlist`);
+});
+
+// ---------- fundraisers & donations (admin) ----------
+app.get(`${A}/donations`, requireAuth, (req, res) => {
+  const donations = getDonationsRaw().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  const games = getGames();
+  const totalRaised = donations.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+
+  const byGame = games.map((g) => {
+    const gameDons = donations.filter((d) => d.gameId === g.id);
+    const raised = gameDons.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+    return {
+      game: g,
+      donations: gameDons,
+      raised,
+      goal: g.fundraiser ? g.fundraiser.goal : 0,
+      percent: g.fundraiser && g.fundraiser.goal > 0 ? Math.min(100, Math.round((raised / g.fundraiser.goal) * 100)) : 0,
+      count: gameDons.length,
+    };
+  });
+
+  res.render('admin/dashboard', {
+    title: 'Fundraisers & Donations',
+    layout: false,
+    tab: 'donations',
+    donations,
+    games,
+    byGame,
+    totalRaised,
+  });
+});
+
+app.post(`${A}/donations`, requireAuth, (req, res) => {
+  const { gameId, donorName, donorEmail, amount, message, isAnonymous, paymentMethod } = req.body;
+  const games = getGames();
+  const game = games.find((g) => g.id === gameId);
+  const numAmount = Math.max(0.01, Number(amount) || 0);
+
+  const donations = getDonationsRaw();
+  donations.push({
+    id: `don_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
+    gameId: game ? game.id : (gameId || ''),
+    gameTitle: game ? game.title : 'Studio Project Fund',
+    donorName: (donorName || 'Anonymous').trim(),
+    donorEmail: (donorEmail || '').trim(),
+    amount: numAmount,
+    message: (message || '').trim(),
+    isAnonymous: isAnonymous === 'on' || isAnonymous === 'true',
+    date: new Date().toISOString(),
+    paymentMethod: paymentMethod || 'manual',
+    status: 'completed',
+  });
+  db.write('donations', donations);
+  req.flash('success', 'Donation logged successfully.');
+  res.redirect(`${A}/donations`);
+});
+
+app.post(`${A}/donations/:id/delete`, requireAuth, (req, res) => {
+  let donations = getDonationsRaw();
+  donations = donations.filter((d) => d.id !== req.params.id);
+  db.write('donations', donations);
+  req.flash('success', 'Donation entry removed.');
+  res.redirect(`${A}/donations`);
 });
 
 // A per-game page written to be shown to (or printed for) a publisher. It deliberately

@@ -105,6 +105,139 @@
         </div>
       <% } %>
 
+      <!-- ---------- Fundraiser & Crowdfunding Band ---------- -->
+      <% if (game.fundraiser && game.fundraiser.enabled) { %>
+        <section id="fundraiser" class="fundraiser-band">
+          <div class="fundraiser-header">
+            <div>
+              <span class="fundraiser-tag">🐺 <%= game.fundraiser.title || 'Development Fundraiser' %></span>
+              <h3 class="fundraiser-title">Support the Creation of <%= game.title %></h3>
+              <% if (game.fundraiser.pitch) { %>
+                <p class="fundraiser-pitch"><%= game.fundraiser.pitch %></p>
+              <% } else { %>
+                <p class="fundraiser-pitch">Back this game directly to help fund art, sound, and expanded features.</p>
+              <% } %>
+            </div>
+            <div>
+              <button type="button" class="btn btn-primary donate-toggle-btn" onclick="var p = document.getElementById('donationPanel'); if(p){ p.scrollIntoView({behavior:'smooth'}); var i = document.getElementById('donationAmountInput'); if(i) i.focus(); }">
+                Back this Game
+              </button>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="fundraiser-progress-wrap">
+            <div class="fundraiser-track" role="progressbar" aria-valuenow="<%= game.fundraiser.percentFunded %>" aria-valuemin="0" aria-valuemax="100">
+              <div class="fundraiser-fill" style="width: <%= Math.min(100, Math.max(game.fundraiser.percentFunded, (game.fundraiser.totalRaised > 0 ? 3 : 0))) %>%;"></div>
+            </div>
+            <div class="fundraiser-metrics">
+              <div class="fundraiser-metric">
+                <span class="fundraiser-metric-num">$<%= Number(game.fundraiser.totalRaised).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) %></span>
+                <span class="fundraiser-metric-label">raised of $<%= Number(game.fundraiser.goal).toLocaleString('en-US') %> goal</span>
+              </div>
+              <div class="fundraiser-metric">
+                <span class="fundraiser-metric-num"><%= game.fundraiser.percentFunded %>%</span>
+                <span class="fundraiser-metric-label">funded</span>
+              </div>
+              <div class="fundraiser-metric">
+                <span class="fundraiser-metric-num"><%= game.fundraiser.donorCount %></span>
+                <span class="fundraiser-metric-label">backers</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Donation Form -->
+          <div id="donationPanel" class="donation-form-panel">
+            <h4 style="margin: 0 0 10px; font-size: 1.1rem; color: var(--white);">Make a Contribution</h4>
+            <p style="margin: 0 0 14px; font-size: 0.85rem; color: var(--grey-dim);">Choose an amount or enter your own. All contributions directly support this game.</p>
+
+            <form class="feedback-form" action="/games/<%= game.slug %>/donate" method="POST" style="background: var(--panel-2); padding: 22px; border-radius: 8px;">
+              <div class="amount-presets">
+                <button type="button" class="amount-chip" onclick="setDonationAmount(10)">$10</button>
+                <button type="button" class="amount-chip active" onclick="setDonationAmount(25)">$25</button>
+                <button type="button" class="amount-chip" onclick="setDonationAmount(50)">$50</button>
+                <button type="button" class="amount-chip" onclick="setDonationAmount(100)">$100</button>
+                <button type="button" class="amount-chip" onclick="setDonationAmount(250)">$250</button>
+              </div>
+
+              <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <label>
+                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Contribution Amount (USD $)</span>
+                  <input type="number" id="donationAmountInput" name="amount" min="1" step="any" value="25" required />
+                </label>
+                <label>
+                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Your Name</span>
+                  <input type="text" name="donorName" placeholder="Your name (e.g. Alex)" maxlength="80" />
+                </label>
+              </div>
+
+              <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                <label>
+                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Email <em style="color:var(--grey-dim);font-size:0.75rem;">(private, for receipt)</em></span>
+                  <input type="email" name="donorEmail" placeholder="you@email.com" />
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; margin-top: 24px; cursor: pointer;">
+                  <input type="checkbox" name="isAnonymous" style="width: auto;" />
+                  <span style="font-size: 0.84rem; color: var(--grey);">Hide my name on the public backer list</span>
+                </label>
+              </div>
+
+              <label>
+                <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Message / Note to the Devs <em style="color:var(--grey-dim);font-size:0.75rem;">(optional)</em></span>
+                <textarea name="message" rows="2" maxlength="400" placeholder="Cheer on the team or share what excites you about this game..."></textarea>
+              </label>
+
+              <button type="submit" class="btn btn-primary btn-block" style="padding: 14px; font-size: 1rem; font-weight: 700; letter-spacing: 0.06em;">
+                🐺 Back <%= game.title %> Now
+              </button>
+            </form>
+          </div>
+
+          <!-- Public Donors Wall -->
+          <% if (game.fundraiser.recentDonors && game.fundraiser.recentDonors.length) { %>
+            <div class="donors-wall">
+              <div class="donors-wall-title">
+                <span>Recent Supporters (<%= game.fundraiser.donorCount %> total)</span>
+                <span style="color: var(--acid);"><%= game.fundraiser.recentDonors.length %> shown</span>
+              </div>
+              <div class="donors-list">
+                <% game.fundraiser.recentDonors.forEach(function (donor) { %>
+                  <div class="donor-pill">
+                    <span style="font-weight: 600;"><%= donor.name %></span>
+                    <span class="donor-amt">$<%= Number(donor.amount).toFixed(2) %></span>
+                    <% if (donor.message) { %>
+                      <span class="donor-msg">“<%= donor.message %>”</span>
+                    <% } %>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          <% } else { %>
+            <div class="donors-wall">
+              <div class="donors-wall-title">
+                <span>Supporters Wall</span>
+              </div>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--grey-dim);">Be the first backer to support <%= game.title %>!</p>
+            </div>
+          <% } %>
+        </section>
+
+        <script>
+          function setDonationAmount(val) {
+            var input = document.getElementById('donationAmountInput');
+            if (input) input.value = val;
+            var chips = document.querySelectorAll('.amount-chip');
+            chips.forEach(function(c) {
+              if (c.textContent.trim() === '$' + val) {
+                c.classList.add('active');
+              } else {
+                c.classList.remove('active');
+              }
+            });
+          }
+        </script>
+      <% } %>
+
       <!-- ---------- long-form body ---------- -->
       <div class="prose">
         <h2>About this game</h2>
