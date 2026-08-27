@@ -16,7 +16,7 @@
   <div class="focus-picker-main">
     <div class="focus-stage" data-focus-stage tabindex="0" role="application"
          aria-label="Drag to choose which part of the image stays visible">
-      <img src="<%= src %>" alt="" draggable="false" />
+      <img src="<%= src %>" alt="" draggable="false" referrerpolicy="no-referrer" />
       <span class="focus-marker" data-focus-marker
             style="left:<%= f.x %>%; top:<%= f.y %>%"></span>
     </div>
@@ -35,7 +35,7 @@
           <div class="focus-preview">
             <div class="focus-preview-frame<%= s.round ? ' is-round' : '' %>" style="aspect-ratio:<%= s.ratio %>">
               <img src="<%= src %>" alt="" data-focus-preview
-                   style="object-position:<%= f.x %>% <%= f.y %>%" />
+                   style="object-position:<%= f.x %>% <%= f.y %>%" referrerpolicy="no-referrer" />
             </div>
             <span class="focus-preview-label"><%= s.label %></span>
           </div>

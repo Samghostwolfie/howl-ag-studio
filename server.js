@@ -971,9 +971,14 @@ app.post(`${A}/team`, requireAuth, (req, res) => {
     role: (role || '').trim(),
     bio: (bio || '').trim(),
     photo: (photo || '').trim(),
+    photoFocus: parseFocus(req.body),
     socials: { x: (x || '').trim(), linkedin: (linkedin || '').trim(), itch: (itch || '').trim() },
   });
   db.write('team', team);
+  if (photo && photo.trim()) {
+    req.flash('success', 'Team member added. Drag the marker to frame their photo.');
+    return res.redirect(`${A}/team/${id}/edit`);
+  }
   req.flash('success', 'Team member added.');
   res.redirect(`${A}/team`);
 });
@@ -996,10 +1001,10 @@ app.post(`${A}/team/:id`, requireAuth, (req, res) => {
   member.role = (role || '').trim();
   member.bio = (bio || '').trim();
   member.socials = { x: (x || '').trim(), linkedin: (linkedin || '').trim(), itch: (itch || '').trim() };
-  // Update photo URL if provided; leave unchanged if field is empty
-  if (photo && photo.trim()) {
+  if (typeof photo === 'string') {
     member.photo = photo.trim();
   }
+  member.photoFocus = parseFocus(req.body);
 
   db.write('team', team);
   req.flash('success', `${member.name} updated.`);

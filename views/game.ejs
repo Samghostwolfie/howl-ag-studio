@@ -257,15 +257,15 @@
               <div class="voice-video">
                 <% if (v.video.mode === 'iframe') { %>
                   <iframe src="<%= v.video.src %>" title="<%= v.name %> on <%= game.title %>"
-                          allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                          allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>
                 <% } else { %>
                   <video src="<%= v.video.src %>" controls preload="metadata"
-                         <%= v.photo ? 'poster=' + v.photo : '' %>></video>
+                         <%= v.photo ? 'poster=' + resolveUploadUrl('team', v.photo) : '' %>></video>
                 <% } %>
               </div>
             <% } else if (v.photo) { %>
               <div class="voice-video voice-photo-only">
-                <img src="<%= v.photo %>" alt="<%= v.name %>" loading="lazy" />
+                <img src="<%= resolveUploadUrl('team', v.photo) %>" alt="<%= v.name %>" loading="lazy" referrerpolicy="no-referrer" />
               </div>
             <% } %>
 
@@ -273,7 +273,7 @@
               <% if (v.quote) { %><blockquote class="voice-quote"><%= v.quote %></blockquote><% } %>
               <div class="voice-who">
                 <% if (v.photo && v.video) { %>
-                  <img class="voice-avatar" src="<%= v.photo %>" alt="" loading="lazy" />
+                  <img class="voice-avatar" src="<%= resolveUploadUrl('team', v.photo) %>" alt="" loading="lazy" referrerpolicy="no-referrer" />
                 <% } %>
                 <div>
                   <span class="voice-name"><%= v.name %></span>

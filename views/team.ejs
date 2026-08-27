@@ -14,7 +14,9 @@
         <div class="team-card">
           <div class="team-photo-wrap">
             <% if (member.photo) { %>
-              <img src="<%= member.photo %>" alt="<%= member.name %>" style="object-position: center center" />
+              <img src="<%= resolveUploadUrl('team', member.photo) %>" alt="<%= member.name %>"
+                   style="object-position:<%= (member.photoFocus && member.photoFocus.x != null ? member.photoFocus.x : 50) %>% <%= (member.photoFocus && member.photoFocus.y != null ? member.photoFocus.y : 50) %>%"
+                   referrerpolicy="no-referrer" />
             <% } else { %>
               <span class="team-initials"><%= member.name.split(' ').map(function(n){return n[0]}).join('').slice(0,2).toUpperCase() %></span>
             <% } %>

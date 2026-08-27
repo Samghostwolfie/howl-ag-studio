@@ -336,8 +336,9 @@
             <tr>
               <td>
                 <% if (t.photo) { %>
-                  <img class="thumb round" src="<%= t.photo %>" alt=""
-                       style="object-position:<%= (t.photoFocus && t.photoFocus.x != null ? t.photoFocus.x : 50) %>% <%= (t.photoFocus && t.photoFocus.y != null ? t.photoFocus.y : 50) %>%" />
+                  <img class="thumb round" src="<%= resolveUploadUrl('team', t.photo) %>" alt=""
+                       style="object-position:<%= (t.photoFocus && t.photoFocus.x != null ? t.photoFocus.x : 50) %>% <%= (t.photoFocus && t.photoFocus.y != null ? t.photoFocus.y : 50) %>%"
+                       referrerpolicy="no-referrer" />
                 <% } else { %>—<% } %>
               </td>
               <td><%= t.name %></td>
@@ -394,13 +395,33 @@
           <label>LinkedIn URL<input type="url" name="linkedin" value="<%= ms.linkedin || '' %>" /></label>
           <label>itch.io URL<input type="url" name="itch" value="<%= ms.itch || '' %>" /></label>
         </div>
-        <label>Photo URL <span class="hint">paste a direct image link — Google Drive, Imgur, Discord CDN, etc.</span>
-          <input type="url" name="photo" value="<%= editingMember.photo || '' %>" placeholder="https://i.imgur.com/example.jpg" />
-        </label>
+
+        <fieldset class="fieldset">
+          <legend>Photo &amp; cropping / framing</legend>
+          <label>Photo URL <span class="hint">paste a direct image link — Google Drive, Imgur, Discord CDN, etc.</span>
+            <input type="url" name="photo" value="<%= editingMember.photo || '' %>" placeholder="https://i.imgur.com/example.jpg or https://drive.google.com/..." />
+          </label>
+
+          <% if (editingMember.photo) { %>
+            <p class="hint" style="margin:12px 0 6px">
+              The team card crops to a square, so a wide or tall photo loses its edges.
+              Drag the marker onto the face or focal point and it stays in shot at every size.
+            </p>
+            <%- include('../partials/focus-picker', {
+                  src: resolveUploadUrl('team', editingMember.photo),
+                  prefix: '',
+                  focus: editingMember.photoFocus || { x: 50, y: 50 },
+                  shapes: [
+                    { label: 'Team card', ratio: '1 / 1' },
+                    { label: 'Round thumb', ratio: '1 / 1', round: true }
+                  ]
+                }) %>
+          <% } %>
+        </fieldset>
       </form>
 
       <div class="form-save-bar">
-        <span class="muted small">Changes save together.</span>
+        <span class="muted small">Framing and details save together.</span>
         <button type="submit" form="teamMemberForm" class="btn btn-primary">Save changes</button>
       </div>
     <% } %>
