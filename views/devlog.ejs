@@ -31,8 +31,8 @@
           <a class="cat-card" href="/devlog/game/<%= g.slug %>">
             <span class="cat-card-media">
               <% if (g.coverImage) { %>
-                <img src="`<%= resolveUploadUrl('covers', g.coverImage) %>`" alt="" loading="lazy"
-                     style="object-position:<%= g.coverPos %>" />
+                <img src="<%= resolveUploadUrl('covers', g.coverImage) %>" alt="" loading="lazy"
+                     style="object-position:<%= g.coverPos %>" referrerpolicy="no-referrer" />
               <% } else { %>
                 <span class="media-empty"><%- include('partials/logo', { id: 'cat' + g.id, size: 34 }) %></span>
               <% } %>

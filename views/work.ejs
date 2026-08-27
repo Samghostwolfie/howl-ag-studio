@@ -15,7 +15,7 @@
           <div class="gc-media">
             <span class="badge status-<%= game.status %>"><%= game.statusLabel %></span>
             <% if (game.coverImage) { %>
-              <img src="`<%= resolveUploadUrl('covers', game.coverImage) %>`" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
+              <img src="<%= resolveUploadUrl('covers', game.coverImage) %>" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" referrerpolicy="no-referrer" />
             <% } else { %>
               <span class="media-empty"><%- include('partials/logo', { id: 'w' + game.id, size: 44 }) %></span>
             <% } %>

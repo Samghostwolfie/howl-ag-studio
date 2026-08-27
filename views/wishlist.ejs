@@ -22,7 +22,7 @@
         <div class="wl-item">
           <a class="wl-thumb" href="/games/<%= game.slug %>">
             <% if (game.coverImage) { %>
-              <img src="`<%= resolveUploadUrl('covers', game.coverImage) %>`" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" />
+              <img src="<%= resolveUploadUrl('covers', game.coverImage) %>" alt="<%= game.title %> cover art" style="object-position:<%= game.coverPos %>" referrerpolicy="no-referrer" />
             <% } else { %>
               <span class="media-empty"><%- include('partials/logo', { id: 'wl' + game.id, size: 38 }) %></span>
             <% } %>

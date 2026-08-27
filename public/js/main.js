@@ -61,9 +61,9 @@ document.addEventListener('DOMContentLoaded', function () {
           (poster ? ' poster="' + poster + '"' : '') + '></video>';
       } else if (type === 'video') {
         stage.innerHTML =
-          '<iframe src="' + src + '" title="Video" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+          '<iframe src="' + src + '" title="Video" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="no-referrer"></iframe>';
       } else {
-        stage.innerHTML = '<img src="' + src + '" alt="Game artwork" />';
+        stage.innerHTML = '<img src="' + src + '" alt="Game artwork" referrerpolicy="no-referrer" />';
       }
     });
   }

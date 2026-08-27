@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
   <title><%= title %> — Admin — <%= studio.name %></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,7 +85,7 @@
         <tbody>
           <% games.forEach(function(g){ %>
             <tr>
-              <td><% if (g.coverImage) { %><img class="thumb" src="`<%= resolveUploadUrl('covers', g.coverImage) %>`" alt="" /><% } else { %>—<% } %></td>
+              <td><% if (g.coverImage) { %><img class="thumb" src="<%= resolveUploadUrl('covers', g.coverImage) %>" alt="" referrerpolicy="no-referrer" /><% } else { %>—<% } %></td>
               <td><%= g.title %></td>
               <td><span class="badge status-<%= g.status %>"><%= g.status %></span></td>
               <td><%= g.pricingType === 'free' ? 'Free' : '$' + Number(g.price).toFixed(2) %></td>
@@ -245,31 +246,20 @@
         <fieldset class="fieldset">
           <legend>Cover / key art</legend>
           <p class="hint" style="margin:0">
-            The same picture is used as the wide hero banner, the 16:10 card and the tall capsule —
-            so parts of it get cropped away differently in each place.
-            <% if (editingGame.coverImage) { %>
-              Drag the marker onto what must always stay in shot.
-            <% } %>
+            The main artwork used as the hero banner, work card, and capsule across the site.
+            Paste any direct image link (Google Drive, Imgur, Dropbox, Discord, etc.).
           </p>
 
-          <% if (editingGame.coverImage) { %>
-            <%- include('../partials/focus-picker', {
-                  src: resolveUploadUrl('covers', editingGame.coverImage),
-                  prefix: 'cover',
-                  focus: editingGame.coverFocus || { x: 50, y: 50 },
-                  shapes: [
-                    { label: 'Hero', ratio: '21 / 9' },
-                    { label: 'Card', ratio: '16 / 10' },
-                    { label: 'Capsule', ratio: '3 / 4' }
-                  ]
-                }) %>
-          <% } %>
-
-          <label>
-            <%= editingGame.coverImage ? 'Replace artwork' : 'Choose an image' %>
-            <% if (editingGame.coverImage) { %><span class="hint">new artwork resets the framing to centre</span><% } %>
-            <input type="file" name="cover" accept="image/*" />
+          <label>Cover Image URL <span class="hint">paste a direct image link</span>
+            <input type="url" name="coverImage" value="<%= editingGame.coverImage || '' %>" placeholder="https://i.imgur.com/example.png or https://drive.google.com/..." />
           </label>
+
+          <% if (editingGame.coverImage) { %>
+            <div style="margin-top:12px">
+              <span class="hint">Preview:</span><br />
+              <img src="<%= resolveUploadUrl('covers', editingGame.coverImage) %>" alt="" style="max-width:280px;border-radius:6px;margin-top:6px" referrerpolicy="no-referrer" />
+            </div>
+          <% } %>
         </fieldset>
       </form>
 
@@ -292,7 +282,7 @@
               <div class="admin-shots">
                 <% editingGame.screenshots.forEach(function(s) { %>
                   <div class="admin-shot">
-                    <img src="`<%= resolveUploadUrl('screenshots', s) %>`" alt="" />
+                    <img src="<%= resolveUploadUrl('screenshots', s) %>" alt="" referrerpolicy="no-referrer" />
                     <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/screenshots/<%= s %>/delete" onsubmit="return confirm('Remove this screenshot?');">
                       <button class="btn btn-danger btn-sm btn-block" type="submit">Remove</button>
                     </form>

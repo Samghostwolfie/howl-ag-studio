@@ -766,7 +766,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     title, tagline, description, genre, platforms, status,
     pricingType, price, externalStoreUrl, trailerUrl,
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
-    imageLinks, videoLinks, wishlistEnabled,
+    imageLinks, videoLinks, wishlistEnabled, coverImage,
   } = req.body;
 
   if (!title || !title.trim()) {
@@ -776,6 +776,11 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
 
   const safeStatus = STATUSES[status] ? status : 'development';
   const isReleased = safeStatus === 'released';
+
+  let finalCover = (coverImage || '').trim();
+  if (req.files && req.files.cover) {
+    finalCover = req.files.cover[0].filename;
+  }
 
   const game = {
     id: `g_${Date.now()}`,
@@ -791,7 +796,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     price: isReleased && pricingType === 'paid' ? Math.max(0, Number(price) || 0) : 0,
     wishlistEnabled: wishlistEnabled === 'on' || wishlistEnabled === 'true',
     externalStoreUrl: (externalStoreUrl || '').trim(),
-    coverImage: req.files && req.files.cover ? req.files.cover[0].filename : '',
+    coverImage: finalCover,
     coverFocus: parseFocus(req.body, 'cover'),
     screenshots: [],
     imageLinks: linesToArray(imageLinks),
@@ -827,7 +832,7 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     title, tagline, description, genre, platforms, status,
     pricingType, price, externalStoreUrl, trailerUrl,
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
-    imageLinks, videoLinks, wishlistEnabled,
+    imageLinks, videoLinks, wishlistEnabled, coverImage,
   } = req.body;
 
   if (title && title.trim() && title.trim() !== game.title) {
@@ -861,6 +866,10 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     sysRec: (sysRec || '').trim(),
     updatedAt: new Date().toISOString(),
   });
+
+  if (typeof coverImage === 'string' && coverImage.trim()) {
+    game.coverImage = coverImage.trim();
+  }
 
   game.coverFocus = parseFocus(req.body, 'cover');
 
