@@ -1200,6 +1200,44 @@
       <h1>Settings</h1>
 
       <div class="admin-subsection" style="margin-top:24px;border-top:0;padding-top:0">
+        <h2>Integrations &amp; Live Services</h2>
+        <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 20px;">
+          <div class="stat-card" style="text-align:left; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="color:var(--white);">Stripe Payments</strong>
+              <span class="badge status-released">Active</span>
+            </div>
+            <p class="muted small" style="margin:0;">Stripe Checkout is active for crowdfunding donations and game purchases.</p>
+          </div>
+
+          <div class="stat-card" style="text-align:left; padding:18px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="color:var(--white);">Email Delivery</strong>
+              <% if (typeof emailConfigured !== 'undefined' && emailConfigured) { %>
+                <span class="badge status-released">Live SMTP</span>
+              <% } else { %>
+                <span class="badge status-prototype">Simulation Mode</span>
+              <% } %>
+            </div>
+            <p class="muted small" style="margin:0;">
+              <% if (typeof emailConfigured !== 'undefined' && emailConfigured) { %>
+                Emails are sent live to user inboxes.
+              <% } else { %>
+                Add <code>GMAIL_USER</code> and <code>GMAIL_APP_PASSWORD</code> in Render to deliver real emails.
+              <% } %>
+            </p>
+          </div>
+        </div>
+
+        <form method="POST" action="<%= adminPath %>/settings/test-email" class="admin-form" style="background:var(--panel-2); padding:16px 20px; border-radius:6px; margin-bottom:30px;">
+          <h3 style="margin:0 0 6px; font-size:0.95rem; color:var(--white);">Send a Test Email</h3>
+          <p class="hint" style="margin:0 0 12px;">Send a test wishlist confirmation to verify your inbox delivery.</p>
+          <div style="display:flex; gap:10px; max-width:480px;">
+            <input type="email" name="testEmail" placeholder="your-email@gmail.com" required style="flex:1;" />
+            <button type="submit" class="btn btn-primary btn-sm">Send Test</button>
+          </div>
+        </form>
+
         <h2>Studio info</h2>
         <form method="POST" action="<%= adminPath %>/settings/studio" class="admin-form">
           <div class="form-grid">

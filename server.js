@@ -47,6 +47,9 @@ if (process.env.TRUST_PROXY !== 'off') app.set('trust proxy', 1);
 const ADMIN_PATH = (process.env.ADMIN_PATH || 'admin').replace(/^\/+|\/+$/g, '') || 'admin';
 const A = `/${ADMIN_PATH}`;
 
+// Stripe secret key for fundraisers and game purchases (configured in Render / .env)
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+
 // ---------- view + core middleware ----------
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -670,10 +673,10 @@ app.post('/games/:slug/donate', async (req, res) => {
   const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
 
   // If Stripe is configured, create a Stripe Checkout session
-  if (process.env.STRIPE_SECRET_KEY) {
+  if (STRIPE_SECRET_KEY) {
     try {
       // eslint-disable-next-line global-require
-      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const stripe = require('stripe')(STRIPE_SECRET_KEY);
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
         payment_method_types: ['card'],
@@ -748,10 +751,10 @@ app.get('/games/:slug/donate/success', async (req, res) => {
   if (!game) return res.status(404).render('404', { title: 'Not found' });
 
   const sessionId = req.query.session_id;
-  if (sessionId && process.env.STRIPE_SECRET_KEY) {
+  if (sessionId && STRIPE_SECRET_KEY) {
     try {
       // eslint-disable-next-line global-require
-      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const stripe = require('stripe')(STRIPE_SECRET_KEY);
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       if (session && session.payment_status === 'paid') {
         const meta = session.metadata || {};
@@ -827,10 +830,10 @@ app.get('/games/:slug/buy', async (req, res) => {
   }
 
   // PAID games: use Stripe Checkout if configured, otherwise fall back to an external store link.
-  if (process.env.STRIPE_SECRET_KEY) {
+  if (STRIPE_SECRET_KEY) {
     try {
       // eslint-disable-next-line global-require
-      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      const stripe = require('stripe')(STRIPE_SECRET_KEY);
       const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -1741,7 +1744,38 @@ app.get(`${A}/wishlist/export.csv`, requireAuth, (req, res) => {
 // ---------- settings ----------
 app.get(`${A}/settings`, requireAuth, (req, res) => {
   const studio = db.read('studio', {});
-  res.render('admin/dashboard', { title: 'Settings', layout: false, tab: 'settings', studio });
+  const emailConfigured = Boolean(require('./lib/email').getTransporter());
+  res.render('admin/dashboard', {
+    title: 'Settings', layout: false, tab: 'settings', studio, emailConfigured,
+  });
+});
+
+app.post(`${A}/settings/test-email`, requireAuth, async (req, res) => {
+  const { testEmail } = req.body;
+  if (!testEmail || !isValidEmail(testEmail)) {
+    req.flash('error', 'Please enter a valid email address for the test.');
+    return res.redirect(`${A}/settings`);
+  }
+
+  const { sendWishlistConfirmation } = require('./lib/email');
+  const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
+  const studio = db.read('studio', {});
+  try {
+    await sendWishlistConfirmation({
+      to: testEmail.trim(),
+      name: 'Admin Tester',
+      gameTitle: 'Alpha Preview',
+      gameSlug: 'alpha-preview',
+      notifyNews: true,
+      notifyDevlog: true,
+      siteUrl,
+      studioName: studio.name || 'Howl A/G Studio',
+    });
+    req.flash('success', `Test email triggered for ${testEmail.trim()}! Check your inbox (and spam folder).`);
+  } catch (err) {
+    req.flash('error', `Email test failed: ${err.message}`);
+  }
+  res.redirect(`${A}/settings`);
 });
 
 app.post(`${A}/settings/studio`, requireAuth, (req, res) => {
