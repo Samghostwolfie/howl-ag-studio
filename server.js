@@ -653,10 +653,9 @@ app.post('/games/:slug/donate', async (req, res) => {
   const game = games.find((g) => g.slug === req.params.slug);
   if (!game) return res.status(404).render('404', { title: 'Not found' });
 
-  if (!game.fundraiser || !game.fundraiser.enabled) {
-    req.flash('error', 'Fundraising is not currently active for this game.');
-    return res.redirect(`/games/${game.slug}`);
-  }
+  // Fundraiser donations are currently on hold while under development
+  req.flash('error', 'Donations are currently on hold while the fundraiser system is under development. Please do not donate at this time.');
+  return res.redirect(`/games/${game.slug}#fundraiser`);
 
   const { donorName, donorEmail, amount, message, isAnonymous } = req.body;
   const numAmount = Math.max(1, Number(amount) || 0);

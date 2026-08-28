@@ -1099,6 +1099,95 @@ strong { color: var(--white); }
   clip-path: var(--notch);
   padding: 30px 34px;
 }
+/* Fundraiser on-hold alert banner */
+.fundraiser-hold-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 194, 71, 0.09);
+  border: 1px solid rgba(255, 194, 71, 0.45);
+  box-shadow: 0 0 24px rgba(255, 194, 71, 0.12), inset 0 0 15px rgba(255, 194, 71, 0.04);
+  padding: 14px 18px;
+  clip-path: var(--notch-sm);
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.fundraiser-hold-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.fundraiser-hold-body {
+  flex: 1;
+  min-width: 240px;
+}
+.fundraiser-hold-title {
+  font-family: var(--f-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--warn);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.fundraiser-hold-desc {
+  margin: 0;
+  font-size: 0.86rem;
+  color: #e2e8f0;
+  line-height: 1.45;
+}
+.fundraiser-hold-badge {
+  background: var(--warn);
+  color: var(--black);
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  padding: 5px 12px;
+  clip-path: var(--notch-sm);
+  white-space: nowrap;
+}
+.fundraiser-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 194, 71, 0.12);
+  border: 1px solid rgba(255, 194, 71, 0.35);
+  color: var(--warn);
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  clip-path: var(--notch-sm);
+}
+.pulse-dot-warn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 8px var(--warn);
+  display: inline-block;
+  animation: pulseWarn 1.8s infinite ease-in-out;
+}
+@keyframes pulseWarn {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.5; }
+}
+.donation-paused-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 194, 71, 0.08);
+  border: 1px dashed rgba(255, 194, 71, 0.35);
+  padding: 12px 16px;
+  clip-path: var(--notch-sm);
+  margin-bottom: 16px;
+}
+.donation-paused-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
 .fundraiser-header {
   display: flex;
   justify-content: space-between;

@@ -108,6 +108,16 @@
       <!-- ---------- Fundraiser & Crowdfunding Band ---------- -->
       <% if (game.fundraiser && game.fundraiser.enabled) { %>
         <section id="fundraiser" class="fundraiser-band">
+          <!-- Top Warning Notice: Under Development / On Hold -->
+          <div class="fundraiser-hold-banner" role="alert">
+            <div class="fundraiser-hold-icon" aria-hidden="true">⚠️</div>
+            <div class="fundraiser-hold-body">
+              <div class="fundraiser-hold-title">DO NOT DONATE HERE &mdash; FEATURE CURRENTLY UNDER DEVELOPMENT</div>
+              <p class="fundraiser-hold-desc">The fundraiser &amp; donation system is temporarily on hold while payment integrations and backer features are being finalized. Contributions cannot be accepted at this time.</p>
+            </div>
+            <div class="fundraiser-hold-badge">ON HOLD</div>
+          </div>
+
           <div class="fundraiser-header">
             <div>
               <span class="fundraiser-tag">🐺 <%= game.fundraiser.title || 'Development Fundraiser' %></span>
@@ -119,9 +129,9 @@
               <% } %>
             </div>
             <div>
-              <button type="button" class="btn btn-primary donate-toggle-btn" onclick="var p = document.getElementById('donationPanel'); if(p){ p.scrollIntoView({behavior:'smooth'}); var i = document.getElementById('donationAmountInput'); if(i) i.focus(); }">
-                Back this Game
-              </button>
+              <span class="fundraiser-status-pill">
+                <span class="pulse-dot-warn"></span> Donations Paused (Under Dev)
+              </span>
             </div>
           </div>
 
@@ -146,50 +156,57 @@
             </div>
           </div>
 
-          <!-- Donation Form -->
-          <div id="donationPanel" class="donation-form-panel">
-            <h4 style="margin: 0 0 10px; font-size: 1.1rem; color: var(--white);">Make a Contribution</h4>
-            <p style="margin: 0 0 14px; font-size: 0.85rem; color: var(--grey-dim);">Choose an amount or enter your own. All contributions directly support this game.</p>
-
-            <form class="feedback-form" action="/games/<%= game.slug %>/donate" method="POST" style="background: var(--panel-2); padding: 22px; border-radius: 8px;">
-              <div class="amount-presets">
-                <button type="button" class="amount-chip" onclick="setDonationAmount(10)">$10</button>
-                <button type="button" class="amount-chip active" onclick="setDonationAmount(25)">$25</button>
-                <button type="button" class="amount-chip" onclick="setDonationAmount(50)">$50</button>
-                <button type="button" class="amount-chip" onclick="setDonationAmount(100)">$100</button>
-                <button type="button" class="amount-chip" onclick="setDonationAmount(250)">$250</button>
+          <!-- Donation Form (Disabled & On Hold) -->
+          <div id="donationPanel" class="donation-form-panel donation-form-paused">
+            <div class="donation-paused-notice">
+              <span class="donation-paused-icon">⚠️</span>
+              <div>
+                <strong style="color: var(--warn); display: block; font-size: 0.95rem; margin-bottom: 2px;">Notice: Do Not Donate Here</strong>
+                <span style="font-size: 0.84rem; color: var(--grey);">This fundraiser is in preview mode and contributions are on hold until payment processing is fully functional.</span>
               </div>
+            </div>
 
-              <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <form class="feedback-form" action="/games/<%= game.slug %>/donate" method="POST" onsubmit="return false;" style="background: var(--panel-2); padding: 22px; border-radius: 8px; opacity: 0.7;">
+              <fieldset disabled style="border: none; margin: 0; padding: 0;">
+                <div class="amount-presets">
+                  <button type="button" class="amount-chip" disabled>$10</button>
+                  <button type="button" class="amount-chip active" disabled>$25</button>
+                  <button type="button" class="amount-chip" disabled>$50</button>
+                  <button type="button" class="amount-chip" disabled>$100</button>
+                  <button type="button" class="amount-chip" disabled>$250</button>
+                </div>
+
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <label>
+                    <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Contribution Amount (USD $)</span>
+                    <input type="number" id="donationAmountInput" name="amount" min="1" step="any" value="25" disabled />
+                  </label>
+                  <label>
+                    <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Your Name</span>
+                    <input type="text" name="donorName" placeholder="Your name (e.g. Alex)" maxlength="80" disabled />
+                  </label>
+                </div>
+
+                <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <label>
+                    <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Email <em style="color:var(--grey-dim);font-size:0.75rem;">(private, for receipt)</em></span>
+                    <input type="email" name="donorEmail" placeholder="you@email.com" disabled />
+                  </label>
+                  <label style="display: flex; align-items: center; gap: 8px; margin-top: 24px; cursor: not-allowed;">
+                    <input type="checkbox" name="isAnonymous" style="width: auto;" disabled />
+                    <span style="font-size: 0.84rem; color: var(--grey);">Hide my name on the public backer list</span>
+                  </label>
+                </div>
+
                 <label>
-                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Contribution Amount (USD $)</span>
-                  <input type="number" id="donationAmountInput" name="amount" min="1" step="any" value="25" required />
+                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Message / Note to the Devs <em style="color:var(--grey-dim);font-size:0.75rem;">(optional)</em></span>
+                  <textarea name="message" rows="2" maxlength="400" placeholder="Cheer on the team or share what excites you about this game..." disabled></textarea>
                 </label>
-                <label>
-                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Your Name</span>
-                  <input type="text" name="donorName" placeholder="Your name (e.g. Alex)" maxlength="80" />
-                </label>
-              </div>
 
-              <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                <label>
-                  <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Email <em style="color:var(--grey-dim);font-size:0.75rem;">(private, for receipt)</em></span>
-                  <input type="email" name="donorEmail" placeholder="you@email.com" />
-                </label>
-                <label style="display: flex; align-items: center; gap: 8px; margin-top: 24px; cursor: pointer;">
-                  <input type="checkbox" name="isAnonymous" style="width: auto;" />
-                  <span style="font-size: 0.84rem; color: var(--grey);">Hide my name on the public backer list</span>
-                </label>
-              </div>
-
-              <label>
-                <span style="display: block; font-size: 0.82rem; font-weight: 600; color: var(--grey); margin-bottom: 5px;">Message / Note to the Devs <em style="color:var(--grey-dim);font-size:0.75rem;">(optional)</em></span>
-                <textarea name="message" rows="2" maxlength="400" placeholder="Cheer on the team or share what excites you about this game..."></textarea>
-              </label>
-
-              <button type="submit" class="btn btn-primary btn-block" style="padding: 14px; font-size: 1rem; font-weight: 700; letter-spacing: 0.06em;">
-                🐺 Back <%= game.title %> Now
-              </button>
+                <button type="button" class="btn btn-secondary btn-block" disabled style="padding: 14px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.06em; cursor: not-allowed; opacity: 0.75;">
+                  ⚠️ Donations Temporarily On Hold (Under Development)
+                </button>
+              </fieldset>
             </form>
           </div>
 
@@ -217,7 +234,7 @@
               <div class="donors-wall-title">
                 <span>Supporters Wall</span>
               </div>
-              <p style="margin: 0; font-size: 0.85rem; color: var(--grey-dim);">Be the first backer to support <%= game.title %>!</p>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--grey-dim);">Backer pledges will appear here once fundraising officially opens.</p>
             </div>
           <% } %>
         </section>
@@ -225,7 +242,7 @@
         <script>
           function setDonationAmount(val) {
             var input = document.getElementById('donationAmountInput');
-            if (input) input.value = val;
+            if (input && !input.disabled) input.value = val;
             var chips = document.querySelectorAll('.amount-chip');
             chips.forEach(function(c) {
               if (c.textContent.trim() === '$' + val) {
