@@ -224,14 +224,120 @@
                   <textarea name="message" rows="2" maxlength="400" placeholder="Cheer on the team or share what excites you about this game..."></textarea>
                 </label>
 
-                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 6px;">
-                  <button type="submit" class="btn btn-primary btn-block" style="padding: 14px; font-size: 1rem; font-weight: 700; letter-spacing: 0.06em;">
-                    🐺 Back <%= game.title %> with Card / Apple Pay / Google Pay
+                <!-- Payment Methods Selector List -->
+                <div class="payment-methods-section">
+                  <div class="payment-methods-header">
+                    <h5 class="payment-methods-title">
+                      <span>💳 Payment Method</span>
+                    </h5>
+                    <span class="payment-security-tag">🔒 256-bit SSL Encrypted</span>
+                  </div>
+
+                  <div class="payment-methods-list">
+                    <!-- Option 1: Credit or Debit Card -->
+                    <label class="payment-option-card active" onclick="selectPaymentMethod('card')">
+                      <input type="radio" name="paymentMethod" value="card" checked style="display:none;" />
+                      <div class="payment-radio-custom"></div>
+                      <div class="payment-brand-badge">
+                        <svg viewBox="0 0 100 32" xmlns="http://www.w3.org/2000/svg"><text x="4" y="22" font-family="sans-serif" font-style="italic" font-weight="900" font-size="20" fill="#1A1F71">VISA</text><circle cx="68" cy="16" r="10" fill="#EB001B"/><circle cx="82" cy="16" r="10" fill="#F79E1B" fill-opacity="0.85"/></svg>
+                      </div>
+                      <div class="payment-option-info">
+                        <div class="payment-option-name">
+                          <span>Credit or Debit Card</span>
+                          <span class="payment-fast-tag">Popular</span>
+                        </div>
+                        <div class="payment-option-sub">Visa, Mastercard, American Express, Discover</div>
+                      </div>
+                    </label>
+
+                    <!-- Option 2: Google Pay -->
+                    <label class="payment-option-card" onclick="selectPaymentMethod('google_pay')">
+                      <input type="radio" name="paymentMethod" value="google_pay" style="display:none;" />
+                      <div class="payment-radio-custom"></div>
+                      <div class="payment-brand-badge">
+                        <svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg"><path d="M43.7 20.3c0-.6 0-1.2-.1-1.7H32.4v3.3h6.4c-.3 1.5-1.1 2.7-2.4 3.6v3h3.9c2.3-2.1 3.4-5.2 3.4-8.2z" fill="#4285F4"/><path d="M32.4 31.8c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H21.7v3.1c2 3.9 6.1 6.5 10.7 6.5z" fill="#34A853"/><path d="M25.8 22.2c-.2-.7-.4-1.5-.4-2.2s.2-1.5.4-2.2v-3.1h-4.1c-.8 1.7-1.3 3.5-1.3 5.3s.5 3.6 1.3 5.3l4.1-3.1z" fill="#FBBC04"/><path d="M32.4 12.1c1.8 0 3.3.6 4.6 1.8l3.4-3.4c-2.1-2-4.8-3.1-8-3.1-4.6 0-8.7 2.6-10.7 6.5l4.1 3.1c.9-2.8 3.5-4.9 6.6-4.9z" fill="#EA4335"/><text x="47" y="27" font-family="sans-serif" font-weight="bold" font-size="20" fill="#3c4043">Pay</text></svg>
+                      </div>
+                      <div class="payment-option-info">
+                        <div class="payment-option-name">
+                          <span>Google Pay</span>
+                          <span class="payment-fast-tag">Instant</span>
+                        </div>
+                        <div class="payment-option-sub">Fast 1-click checkout with your Google account</div>
+                      </div>
+                    </label>
+
+                    <!-- Option 3: Apple Pay -->
+                    <label class="payment-option-card" onclick="selectPaymentMethod('apple_pay')">
+                      <input type="radio" name="paymentMethod" value="apple_pay" style="display:none;" />
+                      <div class="payment-radio-custom"></div>
+                      <div class="payment-brand-badge dark-badge">
+                        <svg viewBox="0 0 100 40" xmlns="http://www.w3.org/2000/svg"><path d="M33.6 20.2c0-3.3 2.7-4.9 2.8-5-1.5-2.2-4-2.5-4.8-2.6-2-.2-4 1.2-5 1.2-1.1 0-2.6-1.2-4.3-1.1-2.2 0-4.3 1.3-5.4 3.3-2.3 4-0.6 9.9 1.6 13.1 1.1 1.6 2.4 3.3 4.1 3.3 1.7 0 2.3-1.1 4.3-1.1 1.9 0 2.5 1.1 4.3 1.1 1.8 0 2.9-1.6 4-3.1 1.3-1.8 1.8-3.6 1.8-3.7-0.1 0-3.5-1.3-3.5-5.1zM29.5 10.5c0.9-1.1 1.5-2.6 1.3-4.2-1.3 0.1-2.9 0.9-3.8 2-0.8 0.9-1.5 2.5-1.3 4 1.5 0.1 2.9-0.8 3.8-1.8z" fill="#ffffff"/><text x="42" y="27" font-family="sans-serif" font-weight="600" font-size="20" fill="#ffffff">Pay</text></svg>
+                      </div>
+                      <div class="payment-option-info">
+                        <div class="payment-option-name">
+                          <span>Apple Pay</span>
+                          <span class="payment-fast-tag">Touch ID</span>
+                        </div>
+                        <div class="payment-option-sub">Seamless checkout with Touch ID / Face ID on Apple devices</div>
+                      </div>
+                    </label>
+
+                    <!-- Option 4: PayPal -->
+                    <label class="payment-option-card" onclick="selectPaymentMethod('paypal')">
+                      <input type="radio" name="paymentMethod" value="paypal" style="display:none;" />
+                      <div class="payment-radio-custom"></div>
+                      <div class="payment-brand-badge paypal-badge">
+                        <svg viewBox="0 0 100 26" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.2 3.1h-7.6c-.6 0-1.1.4-1.2 1l-3.3 21c0 .4.3.7.7.7h4.8c.6 0 1.1-.4 1.2-1l.9-5.9c.1-.6.6-1 1.2-1h2.5c5.2 0 8.3-2.5 9-7.3.4-2.1 0-3.8-1.1-4.9-1.3-1.6-3.7-2.6-6.6-2.6zm.9 7.4c-.4 2.8-2.5 2.8-4.5 2.8h-1.4l1-6.4c0-.2.2-.4.4-.4h1c1.3 0 2.6 0 3.2.7.5.7.5 1.8.3 3.3z" fill="#003087"/><path d="M33.6 8.5h-4.8c-.4 0-.8.3-.9.7l-.2 1.3-.4-.6c-.9-1.2-2.7-1.7-4.6-1.7-4.3 0-8 3.3-8.7 7.9-.4 2.4.2 4.6 1.6 6 1.3 1.3 3.1 1.8 5.2 1.8 3.7 0 5.7-2.4 5.7-2.4l-.2 1.4c0 .4.3.7.7.7h4.4c.5 0 .9-.4 1-1l2.4-15c.1-.6-.3-1.1-.9-1.1zm-4.7 7.7c-.4 2.3-2.2 3.9-4.5 3.9-1.1 0-2.1-.4-2.7-1.1-.6-.7-.8-1.7-.6-2.8.4-2.3 2.3-3.9 4.6-3.9 1.1 0 2 .4 2.6 1.1.6.8.8 1.8.6 2.8z" fill="#0079C1"/><text x="42" y="19" font-family="sans-serif" font-weight="900" font-size="16" fill="#003087">Pay</text><text x="70" y="19" font-family="sans-serif" font-weight="900" font-size="16" fill="#0079C1">Pal</text></svg>
+                      </div>
+                      <div class="payment-option-info">
+                        <div class="payment-option-name">
+                          <span>PayPal</span>
+                        </div>
+                        <div class="payment-option-sub">Pay via PayPal balance or linked bank account</div>
+                      </div>
+                    </label>
+
+                    <!-- Option 5: Klarna / Flexible Split -->
+                    <label class="payment-option-card" onclick="selectPaymentMethod('klarna')">
+                      <input type="radio" name="paymentMethod" value="klarna" style="display:none;" />
+                      <div class="payment-radio-custom"></div>
+                      <div class="payment-brand-badge klarna-badge">
+                        <svg viewBox="0 0 100 32" xmlns="http://www.w3.org/2000/svg"><text x="6" y="23" font-family="sans-serif" font-weight="900" font-size="21" fill="#0A0B09">Klarna.</text></svg>
+                      </div>
+                      <div class="payment-option-info">
+                        <div class="payment-option-name">
+                          <span>Klarna</span>
+                          <span class="payment-split-tag" id="klarnaSplitText">Pay $6.25 today in 4 interest-free payments</span>
+                        </div>
+                        <div class="payment-option-sub">Flexible, interest-free installment options</div>
+                      </div>
+                    </label>
+
+                    <!-- Option 6: Cash App Pay -->
+                    <label class="payment-option-card" onclick="selectPaymentMethod('cashapp')">
+                      <input type="radio" name="paymentMethod" value="cashapp" style="display:none;" />
+                      <div class="payment-radio-custom"></div>
+                      <div class="payment-brand-badge cashapp-badge">
+                        <svg viewBox="0 0 100 32" xmlns="http://www.w3.org/2000/svg"><text x="10" y="22" font-family="sans-serif" font-weight="900" font-size="17" fill="#ffffff">$ Cash App</text></svg>
+                      </div>
+                      <div class="payment-option-info">
+                        <div class="payment-option-name">
+                          <span>Cash App Pay</span>
+                        </div>
+                        <div class="payment-option-sub">Scan QR or 1-tap mobile payment</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 14px;">
+                  <button type="submit" id="donationSubmitBtn" class="btn btn-primary btn-block" style="padding: 15px; font-size: 1.05rem; font-weight: 700; letter-spacing: 0.05em; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    🐺 Back <%= game.title %> with Card • $25.00
                   </button>
 
                   <% if (game.fundraiser.paypalUrl) { %>
-                    <a href="<%= game.fundraiser.paypalUrl %>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block" style="padding: 12px; font-size: 0.95rem; font-weight: 700; text-align: center; text-decoration: none; border-color: #0070ba; color: #38bdf8;">
-                      🅿️ Or Donate via PayPal / External Link &rarr;
+                    <a href="<%= game.fundraiser.paypalUrl %>" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-block" style="padding: 12px; font-size: 0.92rem; font-weight: 700; text-align: center; text-decoration: none; border-color: #0070ba; color: #38bdf8;">
+                      🅿️ Direct PayPal Donation Link &rarr;
                     </a>
                   <% } %>
                 </div>
@@ -275,9 +381,28 @@
         </section>
 
         <script>
+          var currentPaymentMethod = 'card';
+
+          function selectPaymentMethod(method) {
+            currentPaymentMethod = method;
+            var cards = document.querySelectorAll('.payment-option-card');
+            cards.forEach(function(c) {
+              var radio = c.querySelector('input[type="radio"]');
+              if (radio && radio.value === method) {
+                radio.checked = true;
+                c.classList.add('active');
+              } else {
+                c.classList.remove('active');
+              }
+            });
+            updateDonationUI();
+          }
+
           function setDonationAmount(val) {
             var input = document.getElementById('donationAmountInput');
-            if (input && !input.disabled) input.value = val;
+            if (input && !input.disabled) {
+              input.value = val;
+            }
             var chips = document.querySelectorAll('.amount-chip');
             chips.forEach(function(c) {
               if (c.textContent.trim() === '$' + val) {
@@ -286,7 +411,50 @@
                 c.classList.remove('active');
               }
             });
+            updateDonationUI();
           }
+
+          function updateDonationUI() {
+            var input = document.getElementById('donationAmountInput');
+            var amt = input ? (parseFloat(input.value) || 25) : 25;
+            if (amt < 1) amt = 1;
+            var formatted = Number(amt).toFixed(2);
+
+            // Update Klarna split text
+            var klarnaSplit = document.getElementById('klarnaSplitText');
+            if (klarnaSplit) {
+              var splitAmt = (amt / 4).toFixed(2);
+              klarnaSplit.textContent = 'Pay $' + splitAmt + ' today in 4 interest-free payments';
+            }
+
+            // Update Submit Button Label
+            var btn = document.getElementById('donationSubmitBtn');
+            if (btn) {
+              var gameTitle = '<%= game.title %>';
+              if (currentPaymentMethod === 'google_pay') {
+                btn.innerHTML = '<svg style="height:18px;vertical-align:middle;margin-right:4px;" viewBox="0 0 100 40"><path d="M43.7 20.3c0-.6 0-1.2-.1-1.7H32.4v3.3h6.4c-.3 1.5-1.1 2.7-2.4 3.6v3h3.9c2.3-2.1 3.4-5.2 3.4-8.2z" fill="#4285F4"/><path d="M32.4 31.8c3.2 0 5.9-1.1 7.9-2.9l-3.9-3c-1.1.7-2.4 1.2-4 1.2-3.1 0-5.7-2.1-6.6-4.9H21.7v3.1c2 3.9 6.1 6.5 10.7 6.5z" fill="#34A853"/><path d="M25.8 22.2c-.2-.7-.4-1.5-.4-2.2s.2-1.5.4-2.2v-3.1h-4.1c-.8 1.7-1.3 3.5-1.3 5.3s.5 3.6 1.3 5.3l4.1-3.1z" fill="#FBBC04"/><path d="M32.4 12.1c1.8 0 3.3.6 4.6 1.8l3.4-3.4c-2.1-2-4.8-3.1-8-3.1-4.6 0-8.7 2.6-10.7 6.5l4.1 3.1c.9-2.8 3.5-4.9 6.6-4.9z" fill="#EA4335"/><text x="47" y="27" font-family="sans-serif" font-weight="bold" font-size="20" fill="#fff">Pay</text></svg> Pay $' + formatted + ' with Google Pay';
+              } else if (currentPaymentMethod === 'apple_pay') {
+                btn.innerHTML = ' Pay $' + formatted + ' with Apple Pay';
+              } else if (currentPaymentMethod === 'paypal') {
+                btn.innerHTML = '🅿️ Pay $' + formatted + ' with PayPal';
+              } else if (currentPaymentMethod === 'klarna') {
+                btn.innerHTML = '🛍️ Pay with Klarna • $' + formatted;
+              } else if (currentPaymentMethod === 'cashapp') {
+                btn.innerHTML = '💚 Pay with Cash App • $' + formatted;
+              } else {
+                btn.innerHTML = '🐺 Back ' + gameTitle + ' with Card • $' + formatted;
+              }
+            }
+          }
+
+          document.addEventListener('DOMContentLoaded', function() {
+            var input = document.getElementById('donationAmountInput');
+            if (input) {
+              input.addEventListener('input', updateDonationUI);
+              input.addEventListener('change', updateDonationUI);
+            }
+            updateDonationUI();
+          });
         </script>
       <% } %>
 

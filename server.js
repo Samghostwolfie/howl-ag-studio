@@ -670,7 +670,9 @@ app.post('/games/:slug/donate', async (req, res) => {
     return res.redirect(`/games/${game.slug}#fundraiser`);
   }
 
-  const { donorName, donorEmail, amount, message, isAnonymous } = req.body;
+  const {
+    donorName, donorEmail, amount, message, isAnonymous, paymentMethod,
+  } = req.body;
   const numAmount = Math.max(1, Number(amount) || 0);
   if (numAmount < 1) {
     req.flash('error', 'Please enter a valid donation amount (minimum $1 USD).');
@@ -681,17 +683,22 @@ app.post('/games/:slug/donate', async (req, res) => {
   const cleanEmail = (donorEmail || '').trim();
   const cleanMsg = (message || '').trim().slice(0, 400);
   const anon = isAnonymous === 'on' || isAnonymous === 'true';
+  const chosenMethod = paymentMethod || 'card';
   const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
   const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
 
-  // If Stripe is configured, create a Stripe Checkout session
+  // If user selected PayPal and game has a direct PayPal link, redirect there
+  if (chosenMethod === 'paypal' && game.fundraiser && game.fundraiser.paypalUrl) {
+    return res.redirect(game.fundraiser.paypalUrl);
+  }
+
+  // If Stripe is configured, create a Stripe Checkout session with modern multi-payment support
   if (STRIPE_SECRET_KEY) {
     try {
       // eslint-disable-next-line global-require
       const stripe = require('stripe')(STRIPE_SECRET_KEY);
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
-        payment_method_types: ['card'],
         customer_email: cleanEmail || undefined,
         line_items: [
           {
@@ -714,6 +721,7 @@ app.post('/games/:slug/donate', async (req, res) => {
           donorEmail: cleanEmail,
           message: cleanMsg,
           isAnonymous: String(anon),
+          paymentMethod: chosenMethod,
         },
         success_url: `${siteUrl}/games/${game.slug}/donate/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${siteUrl}/games/${game.slug}#fundraiser`,
@@ -736,7 +744,7 @@ app.post('/games/:slug/donate', async (req, res) => {
     message: cleanMsg,
     isAnonymous: anon,
     date: new Date().toISOString(),
-    paymentMethod: 'direct',
+    paymentMethod: chosenMethod || 'direct',
     status: 'completed',
   };
   donations.push(donation);
@@ -784,7 +792,7 @@ app.get('/games/:slug/donate/success', async (req, res) => {
             message: meta.message || '',
             isAnonymous: meta.isAnonymous === 'true',
             date: new Date().toISOString(),
-            paymentMethod: 'stripe',
+            paymentMethod: meta.paymentMethod || 'stripe',
             stripeSessionId: sessionId,
             status: 'completed',
           };
