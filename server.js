@@ -187,14 +187,21 @@ function normalizeGame(g) {
 
   const coverFocus = readFocus(g.coverFocus);
 
-  const fundraiserEnabled = Boolean(g.fundraiserEnabled);
+  let fStatus = g.fundraiserStatus;
+  if (!fStatus) {
+    fStatus = g.fundraiserEnabled ? 'open' : 'closed';
+  }
   const fundraiserGoal = Math.max(0, Number(g.fundraiserGoal) || 0);
   const fStats = fundraiserStats(g.id, fundraiserGoal);
   const fundraiser = {
-    enabled: fundraiserEnabled,
+    status: fStatus,
+    enabled: fStatus === 'open' || fStatus === 'warn',
+    isOpen: fStatus === 'open',
+    isWarn: fStatus === 'warn',
     goal: fundraiserGoal,
     title: g.fundraiserTitle || 'Development Fundraiser',
     pitch: g.fundraiserPitch || '',
+    paypalUrl: (g.fundraiserPaypalUrl || '').trim(),
     ...fStats,
   };
 
@@ -653,9 +660,14 @@ app.post('/games/:slug/donate', async (req, res) => {
   const game = games.find((g) => g.slug === req.params.slug);
   if (!game) return res.status(404).render('404', { title: 'Not found' });
 
-  if (!game.fundraiser || !game.fundraiser.enabled) {
+  if (!game.fundraiser || !game.fundraiser.enabled || game.fundraiser.status === 'closed') {
     req.flash('error', 'Fundraising is not currently active for this game.');
     return res.redirect(`/games/${game.slug}`);
+  }
+
+  if (game.fundraiser.status === 'warn') {
+    req.flash('error', 'Donations are currently on hold while the fundraiser system is under development.');
+    return res.redirect(`/games/${game.slug}#fundraiser`);
   }
 
   const { donorName, donorEmail, amount, message, isAnonymous } = req.body;
@@ -984,7 +996,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     pricingType, price, externalStoreUrl, trailerUrl,
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
     imageLinks, videoLinks, wishlistEnabled, coverImage,
-    fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch,
+    fundraiserStatus, fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch, fundraiserPaypalUrl,
   } = req.body;
 
   if (!title || !title.trim()) {
@@ -1000,6 +1012,10 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     finalCover = req.files.cover[0].filename;
   }
 
+  const fStatus = ['open', 'warn', 'closed'].includes(fundraiserStatus)
+    ? fundraiserStatus
+    : (fundraiserEnabled === 'on' || fundraiserEnabled === 'true' ? 'open' : 'closed');
+
   const game = {
     id: `g_${Date.now()}`,
     slug: uniqueSlug(title),
@@ -1013,10 +1029,12 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     pricingType: isReleased && pricingType === 'paid' ? 'paid' : 'free',
     price: isReleased && pricingType === 'paid' ? Math.max(0, Number(price) || 0) : 0,
     wishlistEnabled: wishlistEnabled === 'on' || wishlistEnabled === 'true',
-    fundraiserEnabled: fundraiserEnabled === 'on' || fundraiserEnabled === 'true',
+    fundraiserStatus: fStatus,
+    fundraiserEnabled: fStatus === 'open' || fStatus === 'warn',
     fundraiserGoal: Math.max(0, Number(fundraiserGoal) || 0),
     fundraiserTitle: (fundraiserTitle || '').trim(),
     fundraiserPitch: (fundraiserPitch || '').trim(),
+    fundraiserPaypalUrl: (fundraiserPaypalUrl || '').trim(),
     externalStoreUrl: (externalStoreUrl || '').trim(),
     coverImage: finalCover,
     coverFocus: parseFocus(req.body, 'cover'),
@@ -1055,7 +1073,7 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     pricingType, price, externalStoreUrl, trailerUrl,
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
     imageLinks, videoLinks, wishlistEnabled, coverImage,
-    fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch,
+    fundraiserStatus, fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch, fundraiserPaypalUrl,
   } = req.body;
 
   if (title && title.trim() && title.trim() !== game.title) {
@@ -1064,6 +1082,10 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
 
   const safeStatus = STATUSES[status] ? status : game.status || 'development';
   const isReleased = safeStatus === 'released';
+
+  const fStatusUpdate = ['open', 'warn', 'closed'].includes(fundraiserStatus)
+    ? fundraiserStatus
+    : (fundraiserEnabled === 'on' || fundraiserEnabled === 'true' ? 'open' : 'closed');
 
   Object.assign(game, {
     title: (title || game.title).trim(),
@@ -1076,10 +1098,12 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     pricingType: isReleased && pricingType === 'paid' ? 'paid' : 'free',
     price: isReleased && pricingType === 'paid' ? Math.max(0, Number(price) || 0) : 0,
     wishlistEnabled: wishlistEnabled === 'on' || wishlistEnabled === 'true',
-    fundraiserEnabled: fundraiserEnabled === 'on' || fundraiserEnabled === 'true',
+    fundraiserStatus: fStatusUpdate,
+    fundraiserEnabled: fStatusUpdate === 'open' || fStatusUpdate === 'warn',
     fundraiserGoal: Math.max(0, Number(fundraiserGoal) || 0),
     fundraiserTitle: (fundraiserTitle || '').trim(),
     fundraiserPitch: (fundraiserPitch || '').trim(),
+    fundraiserPaypalUrl: (fundraiserPaypalUrl || '').trim(),
     imageLinks: linesToArray(imageLinks),
     videoLinks: linesToArray(videoLinks),
     externalStoreUrl: (externalStoreUrl || '').trim(),

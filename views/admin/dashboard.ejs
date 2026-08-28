@@ -232,10 +232,24 @@
           </p>
         <fieldset class="fieldset">
           <legend>Crowdfunding &amp; Fundraiser Goal</legend>
-          <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; cursor:pointer;">
-            <input type="checkbox" name="fundraiserEnabled" <%= (editingGame.fundraiser && editingGame.fundraiser.enabled) || editingGame.fundraiserEnabled ? 'checked' : '' %> />
-            <span style="font-weight:600; color:var(--white);">Enable Crowdfunding / Fundraiser for this game</span>
+          <%
+            var currentFStatus = 'closed';
+            if (editingGame.fundraiser && editingGame.fundraiser.status) {
+              currentFStatus = editingGame.fundraiser.status;
+            } else if ((editingGame.fundraiser && editingGame.fundraiser.enabled) || editingGame.fundraiserEnabled) {
+              currentFStatus = 'open';
+            }
+          %>
+          <label style="margin-bottom:14px; display:block;">
+            <span style="font-weight:600; color:var(--white); display:block; margin-bottom:6px;">Fundraiser &amp; Donation Mode</span>
+            <select name="fundraiserStatus" style="width:100%; padding:10px 12px; font-size:0.92rem; font-weight:600; background:var(--panel-2); color:var(--white); border:1px solid var(--border); border-radius:4px;">
+              <option value="open" <%= currentFStatus === 'open' ? 'selected' : '' %>>🟢 Open / Active — (Accept live donations via Stripe / PayPal)</option>
+              <option value="warn" <%= currentFStatus === 'warn' ? 'selected' : '' %>>⚠️ Warn / On Hold — (Show fundraiser with 'Do Not Donate / Under Dev' notice & lock donations)</option>
+              <option value="closed" <%= currentFStatus === 'closed' ? 'selected' : '' %>>🔒 Closed / Hidden — (Hide fundraiser section completely)</option>
+            </select>
+            <span class="hint">Choose whether donations are closed, on hold with a warning banner, or actively open for backers.</span>
           </label>
+
           <div class="form-grid">
             <label>Funding Goal (USD $)
               <input type="number" name="fundraiserGoal" min="0" step="1" value="<%= (editingGame.fundraiser && editingGame.fundraiser.goal) || editingGame.fundraiserGoal || '' %>" placeholder="5000" />
@@ -246,6 +260,9 @@
           </div>
           <label>Fundraiser Pitch / Goal Description
             <textarea name="fundraiserPitch" rows="3" placeholder="Explain what the funds will be used for (e.g. voice acting, sound design, additional character art)..."><%= (editingGame.fundraiser && editingGame.fundraiser.pitch) || editingGame.fundraiserPitch || '' %></textarea>
+          </label>
+          <label>PayPal / External Donation Link <span class="hint">(optional — adds a direct PayPal / Ko-fi button)</span>
+            <input type="url" name="fundraiserPaypalUrl" value="<%= (editingGame.fundraiser && editingGame.fundraiser.paypalUrl) || editingGame.fundraiserPaypalUrl || '' %>" placeholder="https://paypal.me/yourstudio or https://ko-fi.com/yourstudio" />
           </label>
         </fieldset>
 
