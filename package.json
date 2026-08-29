@@ -8,7 +8,8 @@
     "dev": "node --watch server.js",
     "migrate": "node migrate-to-database.js",
     "migrate:firebase": "node migrate-to-firebase.js",
-    "migrate:firebase:files": "node migrate-to-firebase.js --files"
+    "migrate:firebase:files": "node migrate-to-firebase.js --files",
+    "check:payments": "node check-payments.js"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -16,7 +17,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "connect-flash": "^0.1.1",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "ejs": "^3.1.10",
     "express": "^4.19.2",
     "express-session": "^1.18.0",
@@ -24,7 +25,6 @@
     "multer": "^2.0.0",
     "nodemailer": "^6.9.14",
     "pg": "^8.23.0",
-    "slugify": "^1.6.6",
-    "stripe": "^16.0.0"
+    "slugify": "^1.6.6"
   }
 }

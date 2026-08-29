@@ -47,12 +47,110 @@ if (process.env.TRUST_PROXY !== 'off') app.set('trust proxy', 1);
 const ADMIN_PATH = (process.env.ADMIN_PATH || 'admin').replace(/^\/+|\/+$/g, '') || 'admin';
 const A = `/${ADMIN_PATH}`;
 
-// Stripe secret key for fundraisers and game purchases (configured in Render / .env)
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+// All PayPal wiring — credentials, orders, capture, webhook verification, and
+// the one place donations are ever written — lives in lib/payments.js.
+// See PAYMENTS-SETUP.md.
+const payments = require('./lib/payments');
 
 // ---------- view + core middleware ----------
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+
+// ---------- PayPal webhook (MUST be mounted before the body parsers) ----------
+// PayPal signs the exact bytes it sent. express.json() would parse and discard
+// those bytes, so this one route takes the raw buffer and is registered ahead of
+// the parsers below. Do not move it.
+//
+// This is what makes payments reliable rather than best-effort. Two cases the
+// browser return alone cannot cover:
+//
+//   • The donor approves on paypal.com and then closes the tab. The order is
+//     approved but NOT captured — no money has moved. CHECKOUT.ORDER.APPROVED
+//     lets us capture it server-side instead of losing the donation.
+//   • The donor pays but never makes it back to the site. PAYMENT.CAPTURE.COMPLETED
+//     records it anyway.
+app.post('/webhooks/paypal', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!payments.isConfigured() || !payments.hasWebhookId()) {
+    return res.status(503).send('PayPal webhook is not configured on this server.');
+  }
+
+  let event;
+  try {
+    event = JSON.parse(req.body.toString('utf8'));
+  } catch (err) {
+    return res.status(400).send('Webhook Error: body is not valid JSON.');
+  }
+
+  // Fails closed. If PayPal will not confirm it sent this, we do not act on it.
+  let verified = false;
+  try {
+    verified = await payments.verifyWebhook(req.headers, event);
+  } catch (err) {
+    console.error('[paypal] Webhook verification call failed:', err.message);
+    return res.status(400).send('Webhook Error: could not verify signature.');
+  }
+  if (!verified) {
+    console.error(`[paypal] REJECTED unverified webhook (event type: ${event.event_type}).`);
+    return res.status(400).send('Webhook Error: signature verification failed.');
+  }
+
+  const resource = event.resource || {};
+
+  try {
+    switch (event.event_type) {
+      // Donor approved on paypal.com. Money has NOT moved yet — capture it.
+      case 'CHECKOUT.ORDER.APPROVED': {
+        const unit = (resource.purchase_units || [])[0] || {};
+        const ref = unit.custom_id || unit.reference_id || '';
+        const captured = await payments.captureOrder(resource.id, ref);
+        recordCapture(captured, 'webhook');
+        break;
+      }
+
+      // The money actually moved.
+      case 'PAYMENT.CAPTURE.COMPLETED': {
+        // A capture event is not a full order, so fetch the order it belongs to
+        // and let the recorder work from the same shape as everywhere else.
+        const orderLink = (resource.links || []).find((l) => l.rel === 'up');
+        const orderId = orderLink ? orderLink.href.split('/').pop() : null;
+        if (orderId) {
+          recordCapture(await payments.getOrder(orderId), 'webhook');
+        } else {
+          console.warn(`[paypal] Capture ${resource.id} completed but its order could not be resolved.`);
+        }
+        break;
+      }
+
+      case 'PAYMENT.CAPTURE.DENIED': {
+        const ref = resource.custom_id || '';
+        payments.markDonationFailed(ref, 'PayPal denied the capture');
+        console.warn(`[paypal] Capture DENIED for ${ref || resource.id}. Nothing counted.`);
+        break;
+      }
+
+      // Refunds must stop counting toward the fundraiser total.
+      case 'PAYMENT.CAPTURE.REFUNDED':
+      case 'PAYMENT.CAPTURE.REVERSED': {
+        const capLink = (resource.links || []).find((l) => l.rel === 'up');
+        const capId = capLink ? capLink.href.split('/').pop() : '';
+        if (payments.markDonationRefunded(capId)) {
+          console.log(`[paypal] Donation for capture ${capId} marked refunded — removed from the fundraiser total.`);
+        }
+        break;
+      }
+
+      default:
+        return res.json({ received: true, ignored: event.event_type });
+    }
+  } catch (err) {
+    // Return 500 so PayPal retries. It re-delivers with backoff for up to three
+    // days, so a transient failure here cannot lose a real payment.
+    console.error(`[paypal] Failed handling ${event.event_type}:`, err.message);
+    return res.status(500).send('Handling failed — please retry.');
+  }
+
+  return res.json({ received: true });
+});
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -127,6 +225,9 @@ app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, must-revalidate');
 
   res.locals.studio = db.read('studio', {});
+  // So the admin panel can report the real payment state instead of a badge
+  // that always claims "Active".
+  res.locals.paymentStatus = payments.describeConfig();
   res.locals.currentUser = req.session.userId
     ? db.read('admin', []).find((a) => a.id === req.session.userId)
     : null;
@@ -252,8 +353,58 @@ function getDonationsRaw() {
 function getDonations() {
   return getDonationsRaw();
 }
+// Only money that actually arrived counts toward a fundraiser total. A record is
+// 'completed' when PayPal confirmed the capture, or when you logged a real off-site
+// contribution by hand in the admin panel. Anything else — a pending bank debit,
+// an abandoned checkout — is kept for the record but never inflates the bar.
 function donationsForGame(gameId) {
-  return getDonations().filter((d) => d.gameId === gameId && d.status !== 'cancelled');
+  return getDonations().filter((d) => d.gameId === gameId && d.status === 'completed');
+}
+
+// The single funnel every completed PayPal capture goes through, whether it
+// arrived via the donor's browser or via the webhook. Figures out from our own
+// reference id whether it was a donation or a game purchase, records it (the
+// recorders are idempotent, so a double delivery does nothing), and sends the
+// receipt exactly once — from whichever path got there first.
+function recordCapture(order, source) {
+  const capture = payments.extractCapture(order);
+  const kind = payments.refKind(capture && capture.ref) || 'donation';
+
+  if (kind === 'purchase') {
+    const result = payments.recordOrderFromCapture(order);
+    if (result.created) {
+      console.log(`[paypal] Order recorded via ${source} — ${result.order.gameTitle} ${result.order.currency} ${result.order.amount}`);
+    }
+    return result;
+  }
+
+  const result = payments.recordDonationFromCapture(order);
+  if (result.created) {
+    const d = result.donation;
+    console.log(`[paypal] Donation recorded via ${source} — ${d.currency} ${d.amount} for ${d.gameTitle || 'the studio'} from ${d.donorName}`);
+    if (result.reason === 'recorded-without-pending') {
+      console.warn(`[paypal] No pending record matched ref "${d.ref}" — recorded from PayPal's data alone. Check Admin → Donations.`);
+    }
+    sendDonationReceipt(d);
+  }
+  return result;
+}
+
+// Send a donor their receipt. Used by both the webhook and the browser return;
+// whichever records the donation first is the one that sends the email, so nobody
+// gets thanked twice for one contribution.
+function sendDonationReceipt(donation) {
+  if (!donation || !donation.donorEmail || !isValidEmail(donation.donorEmail)) return;
+  const siteUrl = process.env.SITE_URL || '';
+  const studio = db.read('studio', {});
+  sendDonationThankYou({
+    to: donation.donorEmail,
+    donorName: donation.donorName,
+    gameTitle: donation.gameTitle,
+    amount: donation.amount,
+    siteUrl,
+    studioName: studio.name || 'Howl A/G Studio',
+  }).catch((err) => console.error('[email] Donation thank-you error:', err.message));
 }
 function fundraiserStats(gameId, goalAmount) {
   const dons = donationsForGame(gameId);
@@ -673,9 +824,11 @@ app.post('/games/:slug/donate', async (req, res) => {
   const {
     donorName, donorEmail, amount, message, isAnonymous, paymentMethod,
   } = req.body;
-  const numAmount = Math.max(1, Number(amount) || 0);
-  if (numAmount < 1) {
-    req.flash('error', 'Please enter a valid donation amount (minimum $1 USD).');
+  // Strict on purpose. The old code did Math.max(1, Number(amount) || 0), which
+  // silently turned a typo into a $1 donation and made the check below dead code.
+  const numAmount = payments.parseAmount(amount);
+  if (numAmount === null) {
+    req.flash('error', `Please enter a donation amount between $${payments.MIN_AMOUNT} and $${payments.MAX_AMOUNT.toLocaleString('en-US')}.`);
     return res.redirect(`/games/${game.slug}#fundraiser`);
   }
 
@@ -683,86 +836,61 @@ app.post('/games/:slug/donate', async (req, res) => {
   const cleanEmail = (donorEmail || '').trim();
   const cleanMsg = (message || '').trim().slice(0, 400);
   const anon = isAnonymous === 'on' || isAnonymous === 'true';
-  const chosenMethod = paymentMethod || 'card';
+  const chosenMethod = payments.isKnownMethod(paymentMethod) ? paymentMethod : 'paypal';
   const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
   const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
 
-  // If user selected PayPal and game has a direct PayPal link, redirect there
-  if (chosenMethod === 'paypal' && game.fundraiser && game.fundraiser.paypalUrl) {
-    return res.redirect(game.fundraiser.paypalUrl);
+  // No PayPal credentials means there is no way to take money. If a plain
+  // PayPal.me / Ko-fi link is configured, send the donor there — that money goes
+  // straight to your account, but this site never hears about it, so nothing is
+  // recorded and you log it by hand in Admin → Donations once it lands.
+  if (!payments.isConfigured()) {
+    if (game.fundraiser.paypalUrl) return res.redirect(game.fundraiser.paypalUrl);
+    console.error('[paypal] Donation attempted but PayPal credentials are not set. See PAYMENTS-SETUP.md.');
+    req.flash('error', 'Donations are temporarily unavailable. Nothing has been charged — please try again shortly.');
+    return res.redirect(`/games/${game.slug}#fundraiser`);
   }
 
-  // If Stripe is configured, create a Stripe Checkout session with modern multi-payment support
-  if (STRIPE_SECRET_KEY) {
-    try {
-      // eslint-disable-next-line global-require
-      const stripe = require('stripe')(STRIPE_SECRET_KEY);
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        customer_email: cleanEmail || undefined,
-        line_items: [
-          {
-            price_data: {
-              currency: 'usd',
-              product_data: {
-                name: `Fundraiser Donation: ${game.title}`,
-                description: game.fundraiser.title || `Community backer contribution for ${game.title}`,
-              },
-              unit_amount: Math.round(numAmount * 100),
-            },
-            quantity: 1,
-          },
-        ],
-        metadata: {
-          type: 'donation',
-          gameId: game.id,
-          gameTitle: game.title,
-          donorName: cleanName,
-          donorEmail: cleanEmail,
-          message: cleanMsg,
-          isAnonymous: String(anon),
-          paymentMethod: chosenMethod,
-        },
-        success_url: `${siteUrl}/games/${game.slug}/donate/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${siteUrl}/games/${game.slug}#fundraiser`,
-      });
-      return res.redirect(303, session.url);
-    } catch (err) {
-      console.error('[stripe] donation checkout failed, recording directly:', err.message);
-    }
-  }
-
-  // Direct recording (when Stripe is not set up or as direct backer pledge)
-  const donations = getDonationsRaw();
-  const donation = {
-    id: `don_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
+  // Write the donor's details down BEFORE leaving for PayPal. PayPal's custom_id
+  // field is only 127 characters — far too small to carry a name, email and
+  // message — so all it carries is this reference id, and the record it points
+  // at holds the rest. It stays 'pending' (and out of every total) until a real
+  // capture completes.
+  const ref = payments.newRef('don');
+  payments.createPendingDonation({
+    ref,
     gameId: game.id,
     gameTitle: game.title,
+    gameSlug: game.slug,
     donorName: cleanName,
     donorEmail: cleanEmail,
     amount: numAmount,
     message: cleanMsg,
     isAnonymous: anon,
-    date: new Date().toISOString(),
-    paymentMethod: chosenMethod || 'direct',
-    status: 'completed',
-  };
-  donations.push(donation);
-  db.write('donations', donations);
+    paymentMethod: chosenMethod,
+  });
 
-  if (cleanEmail && isValidEmail(cleanEmail)) {
-    sendDonationThankYou({
-      to: cleanEmail,
-      donorName: cleanName,
-      gameTitle: game.title,
+  try {
+    const order = await payments.createOrder({
+      ref,
       amount: numAmount,
-      siteUrl,
-      studioName,
-    }).catch((err) => console.error('[email] Donation thank-you error:', err.message));
-  }
+      method: chosenMethod,
+      brandName: studioName,
+      description: `${game.fundraiser.title || 'Development Fundraiser'} — ${game.title}`,
+      returnUrl: `${siteUrl}/games/${game.slug}/donate/success?ref=${encodeURIComponent(ref)}`,
+      cancelUrl: `${siteUrl}/games/${game.slug}/donate/cancel?ref=${encodeURIComponent(ref)}`,
+    });
 
-  req.flash('success', `Thank you so much for backing ${game.title}! 🐺 Your support means everything.`);
-  res.redirect(`/games/${game.slug}#fundraiser`);
+    if (!order.approveUrl) throw new Error('PayPal did not return an approval link.');
+    return res.redirect(303, order.approveUrl);
+  } catch (err) {
+    // The donor never even reached PayPal, so nothing was charged. Mark the
+    // pending record failed so it can't linger, and say so plainly.
+    console.error('[paypal] Could not create donation order:', err.message);
+    payments.markDonationFailed(ref, 'Order could not be created');
+    req.flash('error', 'We could not reach PayPal just now. Nothing has been charged — please try again in a moment.');
+    return res.redirect(`/games/${game.slug}#fundraiser`);
+  }
 });
 
 app.get('/games/:slug/donate/success', async (req, res) => {
@@ -770,55 +898,47 @@ app.get('/games/:slug/donate/success', async (req, res) => {
   const game = games.find((g) => g.slug === req.params.slug);
   if (!game) return res.status(404).render('404', { title: 'Not found' });
 
-  const sessionId = req.query.session_id;
-  if (sessionId && STRIPE_SECRET_KEY) {
-    try {
-      // eslint-disable-next-line global-require
-      const stripe = require('stripe')(STRIPE_SECRET_KEY);
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      if (session && session.payment_status === 'paid') {
-        const meta = session.metadata || {};
-        const donations = getDonationsRaw();
-        const existing = donations.find((d) => d.stripeSessionId === sessionId);
-        if (!existing) {
-          const numAmount = (session.amount_total || 0) / 100;
-          const donation = {
-            id: `don_${Date.now()}_${Math.round(Math.random() * 1e6)}`,
-            gameId: meta.gameId || game.id,
-            gameTitle: meta.gameTitle || game.title,
-            donorName: meta.donorName || (session.customer_details && session.customer_details.name) || 'Anonymous',
-            donorEmail: meta.donorEmail || (session.customer_details && session.customer_details.email) || '',
-            amount: numAmount,
-            message: meta.message || '',
-            isAnonymous: meta.isAnonymous === 'true',
-            date: new Date().toISOString(),
-            paymentMethod: meta.paymentMethod || 'stripe',
-            stripeSessionId: sessionId,
-            status: 'completed',
-          };
-          donations.push(donation);
-          db.write('donations', donations);
+  // Where PayPal sends the donor back after they approve. This is the step that
+  // actually captures the money, so it matters — but it is not the only one.
+  // If the donor never makes it back here, the CHECKOUT.ORDER.APPROVED webhook
+  // captures the same order instead. Both funnel through recordCapture, which is
+  // idempotent, so whichever arrives first wins and the other is a no-op.
+  //
+  // Nothing here trusts the query string: the token names an order, and we ask
+  // PayPal what that order's real state is.
+  const orderId = req.query.token;
+  let paid = false;
 
-          if (donation.donorEmail && isValidEmail(donation.donorEmail)) {
-            const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
-            const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
-            sendDonationThankYou({
-              to: donation.donorEmail,
-              donorName: donation.donorName,
-              gameTitle: game.title,
-              amount: numAmount,
-              siteUrl,
-              studioName,
-            }).catch((err) => console.error('[email] Donation thank-you error:', err.message));
-          }
-        }
-      }
+  if (orderId && payments.isConfigured()) {
+    try {
+      const captured = await payments.captureOrder(orderId, req.query.ref);
+      const result = recordCapture(captured, 'browser return');
+      paid = result.created || result.reason === 'already-recorded';
     } catch (err) {
-      console.error('[stripe] verify donation session failed:', err.message);
+      // The capture may still have gone through, or the webhook will retry it.
+      // Don't tell the donor it failed when we simply don't know.
+      console.error('[paypal] Could not capture order on return:', err.message);
     }
   }
 
-  req.flash('success', `Thank you so much for backing ${game.title}! 🐺 Your donation was received.`);
+  if (paid) {
+    req.flash('success', `Thank you so much for backing ${game.title}! 🐺 Your donation was received.`);
+  } else {
+    req.flash('success', `Thanks for backing ${game.title}! 🐺 If PayPal takes a moment to confirm, your name will appear on the backer wall as soon as it does.`);
+  }
+  res.redirect(`/games/${game.slug}#fundraiser`);
+});
+
+// The donor backed out on PayPal's page. No money moved. Clear the pending
+// record so it doesn't sit around looking like an unpaid obligation.
+app.get('/games/:slug/donate/cancel', (req, res) => {
+  const games = getGames();
+  const game = games.find((g) => g.slug === req.params.slug);
+  if (!game) return res.status(404).render('404', { title: 'Not found' });
+
+  if (req.query.ref) payments.markDonationFailed(req.query.ref, 'Cancelled by donor at PayPal');
+
+  req.flash('error', 'Donation cancelled — nothing was charged.');
   res.redirect(`/games/${game.slug}#fundraiser`);
 });
 
@@ -849,37 +969,80 @@ app.get('/games/:slug/buy', async (req, res) => {
     return res.redirect(`/games/${game.slug}`);
   }
 
-  // PAID games: use Stripe Checkout if configured, otherwise fall back to an external store link.
-  if (STRIPE_SECRET_KEY) {
+  // PAID games: use PayPal if configured, otherwise fall back to an external store link.
+  if (payments.isConfigured()) {
+    const priceAmount = payments.parseAmount(game.price);
+    if (priceAmount === null) {
+      console.error(`[paypal] "${game.title}" is marked paid but its price (${game.price}) is not a chargeable amount.`);
+      req.flash('error', 'This game’s price isn’t set up correctly yet — please check back soon.');
+      return res.redirect(`/games/${game.slug}`);
+    }
+
+    // The 'ord_' prefix is what tells recordCapture this is a purchase and not
+    // a donation, so it never lands on the fundraiser progress bar.
+    const ref = payments.newRef('ord');
+    payments.createPendingOrder({
+      ref, gameId: game.id, gameTitle: game.title, gameSlug: game.slug, amount: priceAmount,
+    });
+
     try {
-      // eslint-disable-next-line global-require
-      const stripe = require('stripe')(STRIPE_SECRET_KEY);
       const siteUrl = process.env.SITE_URL || `${req.protocol}://${req.get('host')}`;
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        line_items: [
-          {
-            price_data: {
-              currency: 'usd',
-              product_data: { name: game.title, description: game.tagline || undefined },
-              unit_amount: Math.round(Number(game.price || 0) * 100),
-            },
-            quantity: 1,
-          },
-        ],
-        success_url: `${siteUrl}/games/${game.slug}?purchase=success`,
-        cancel_url: `${siteUrl}/games/${game.slug}?purchase=cancelled`,
+      const studioName = res.locals.studio && res.locals.studio.name ? res.locals.studio.name : 'Howl A/G Studio';
+      const order = await payments.createOrder({
+        ref,
+        amount: priceAmount,
+        method: 'paypal',
+        brandName: studioName,
+        description: game.tagline || game.title,
+        returnUrl: `${siteUrl}/games/${game.slug}/buy/success?ref=${encodeURIComponent(ref)}`,
+        cancelUrl: `${siteUrl}/games/${game.slug}?purchase=cancelled`,
       });
-      return res.redirect(303, session.url);
+
+      if (!order.approveUrl) throw new Error('PayPal did not return an approval link.');
+      return res.redirect(303, order.approveUrl);
     } catch (err) {
-      console.error('[stripe] checkout failed, falling back:', err.message);
+      // Don't silently hand over a paid game because checkout broke.
+      console.error('[paypal] Could not create purchase order:', err.message);
+      req.flash('error', 'We could not reach PayPal just now. Nothing has been charged — please try again in a moment.');
+      return res.redirect(`/games/${game.slug}`);
     }
   }
 
   if (game.externalStoreUrl) return res.redirect(game.externalStoreUrl);
 
-  req.flash('error', 'Checkout isn’t connected yet — add a Stripe key or a store link from the admin panel.');
+  req.flash('error', 'Checkout isn’t connected yet — add your PayPal credentials or a store link from the admin panel.');
   res.redirect(`/games/${game.slug}`);
+});
+
+// Where a paid buyer lands after Checkout. Records the order (idempotently — the
+// webhook may have beaten us to it) and hands over the download.
+app.get('/games/:slug/buy/success', async (req, res) => {
+  const games = getGames();
+  const game = games.find((g) => g.slug === req.params.slug);
+  if (!game) return res.status(404).render('404', { title: 'Not found' });
+
+  const orderId = req.query.token;
+  let paid = false;
+
+  if (orderId && payments.isConfigured()) {
+    try {
+      const captured = await payments.captureOrder(orderId, req.query.ref);
+      const result = recordCapture(captured, 'browser return');
+      paid = result.created || result.reason === 'already-recorded';
+    } catch (err) {
+      console.error('[paypal] Could not capture purchase on return:', err.message);
+    }
+  }
+
+  if (!paid) {
+    req.flash('error', 'We could not confirm that payment yet. If you were charged, your download link is on its way — contact us if it doesn’t arrive.');
+    return res.redirect(`/games/${game.slug}`);
+  }
+
+  req.flash('success', `Thank you for buying ${game.title}! 🐺 Your download is starting.`);
+  if (game.downloadFile) return res.redirect(`/uploads/builds/${game.downloadFile}`);
+  if (game.externalStoreUrl) return res.redirect(game.externalStoreUrl);
+  return res.redirect(`/games/${game.slug}`);
 });
 
 // =====================================================================
@@ -1657,11 +1820,15 @@ app.post(`${A}/wishlist/game/:gameId/delete`, requireAuth, (req, res) => {
 app.get(`${A}/donations`, requireAuth, (req, res) => {
   const donations = getDonationsRaw().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
   const games = getGames();
-  const totalRaised = donations.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+  // Totals must match the public progress bars: only money that actually
+  // arrived. Pending, failed, cancelled and refunded records are still listed
+  // below so you can see what happened, they just don't count.
+  const counts = (d) => d.status === 'completed';
+  const totalRaised = donations.filter(counts).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
 
   const byGame = games.map((g) => {
     const gameDons = donations.filter((d) => d.gameId === g.id);
-    const raised = gameDons.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+    const raised = gameDons.filter(counts).reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
     return {
       game: g,
       donations: gameDons,
@@ -1917,11 +2084,29 @@ db.init()
       }[info.mode] || info.mode;
       const uploadsLabel = USE_FIREBASE_STORAGE ? 'Firebase Storage (cloud)' : 'local disk';
 
+      const pay = payments.describeConfig();
+
       console.log(`\n  Howl A/G Studio  v${APP_VERSION}`);
       console.log(`  Storage:     ${storageLabel}`);
       console.log(`  Uploads:     ${uploadsLabel}`);
+      console.log(`  Payments:    ${pay.summary}`);
       console.log(`  Site:        http://localhost:${PORT}`);
       console.log(`  Admin panel: http://localhost:${PORT}${A}`);
+
+      // Money is the one thing worth shouting about when it's misconfigured —
+      // a silent failure here means real donations quietly go missing.
+      if (!pay.ready) {
+        console.warn('\n  [payments] Donations and purchases will be REFUSED until PAYPAL_CLIENT_ID');
+        console.warn('             and PAYPAL_CLIENT_SECRET are set. See PAYMENTS-SETUP.md');
+      } else if (!payments.hasWebhookId()) {
+        console.warn('\n  [payments] PAYPAL_WEBHOOK_ID is missing. Payments still work, but if a donor');
+        console.warn('             approves on PayPal and closes the tab, the money is never captured');
+        console.warn('             and the donation is lost. See PAYMENTS-SETUP.md.');
+      } else if (payments.isLiveMode() && !process.env.SITE_URL) {
+        console.warn('\n  [payments] Live PayPal credentials are in use but SITE_URL is not set.');
+        console.warn('             Return URLs are being guessed from request headers — set SITE_URL.');
+      }
+
       console.log(`\n  Keep this window open. Restart it after any code change.\n`);
     });
 

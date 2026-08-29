@@ -226,8 +226,8 @@
             <input type="url" name="externalStoreUrl" value="<%= editingGame.externalStoreUrl || '' %>" placeholder="https://store.steampowered.com/..." />
           </label>
           <p class="hint">
-            Free games with an uploaded build download straight from this site. Paid games use Stripe Checkout
-            automatically when <code>STRIPE_SECRET_KEY</code> is set in <code>.env</code>; otherwise "Buy now"
+            Free games with an uploaded build download straight from this site. Paid games use PayPal
+            automatically when your PayPal credentials are set in <code>.env</code>; otherwise "Buy now"
             sends players to the link above.
           </p>
         <fieldset class="fieldset">
@@ -243,7 +243,7 @@
           <label style="margin-bottom:14px; display:block;">
             <span style="font-weight:600; color:var(--white); display:block; margin-bottom:6px;">Fundraiser &amp; Donation Mode</span>
             <select name="fundraiserStatus" style="width:100%; padding:10px 12px; font-size:0.92rem; font-weight:600; background:var(--panel-2); color:var(--white); border:1px solid var(--border); border-radius:4px;">
-              <option value="open" <%= currentFStatus === 'open' ? 'selected' : '' %>>🟢 Open / Active — (Accept live donations via Stripe / PayPal)</option>
+              <option value="open" <%= currentFStatus === 'open' ? 'selected' : '' %>>🟢 Open / Active — (Accept live donations via PayPal)</option>
               <option value="warn" <%= currentFStatus === 'warn' ? 'selected' : '' %>>⚠️ Warn / On Hold — (Show fundraiser with 'Do Not Donate / Under Dev' notice & lock donations)</option>
               <option value="closed" <%= currentFStatus === 'closed' ? 'selected' : '' %>>🔒 Closed / Hidden — (Hide fundraiser section completely)</option>
             </select>
@@ -1132,7 +1132,7 @@
                 <option value="paypal">PayPal</option>
                 <option value="bank">Bank Transfer</option>
                 <option value="cash">Cash / In Person</option>
-                <option value="stripe">Stripe</option>
+                <option value="card">Card (via PayPal)</option>
                 <option value="other">Other</option>
               </select>
             </label>
@@ -1221,10 +1221,14 @@
         <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-bottom: 20px;">
           <div class="stat-card" style="text-align:left; padding:18px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <strong style="color:var(--white);">Stripe Payments</strong>
-              <span class="badge status-released">Active</span>
+              <strong style="color:var(--white);">PayPal Payments</strong>
+              <% if (paymentStatus && paymentStatus.ready) { %>
+                <span class="badge status-released"><%= paymentStatus.mode === 'live' ? 'Live' : 'Sandbox' %></span>
+              <% } else { %>
+                <span class="badge" style="background:#7f1d1d;color:#fecaca;">Not connected</span>
+              <% } %>
             </div>
-            <p class="muted small" style="margin:0;">Stripe Checkout is active for crowdfunding donations and game purchases.</p>
+            <p class="muted small" style="margin:0;"><%= paymentStatus ? paymentStatus.summary : 'Payment status unavailable.' %></p>
           </div>
 
           <div class="stat-card" style="text-align:left; padding:18px;">

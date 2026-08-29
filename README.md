@@ -58,17 +58,26 @@ When you create or edit a game, the **Pricing & publishing** section lets you fl
 - **Free** — if you upload a build file (zip, exe, etc.), the "Download now" button serves it directly from your site. You can also just point it at an external link (itch.io, Steam, your own host).
 - **Paid** — set a USD price. Add an **external store link** (Steam, itch.io, your own checkout) as your fallback — the "Buy now" button will send players there.
 
-### Optional: real in-site card checkout (Stripe)
+### Real in-site checkout and fundraiser donations (PayPal)
 
-By default, paid games send players to your external store link, which is enough for most studios
-early on. If you'd rather sell directly from this site:
+Donations and paid-game checkout both run on PayPal. Money lands in your PayPal business
+account, and you withdraw from there to the studio bank account. Card donors can pay as a
+guest without a PayPal account.
 
-1. Create a [Stripe](https://stripe.com) account and grab your **secret key**.
-2. `npm install stripe`
-3. Put the key in `.env` as `STRIPE_SECRET_KEY=sk_live_...`
+Set these in `.env`:
 
-Once that key is set, "Buy now" automatically creates a real Stripe Checkout session instead of
-using the fallback link — no other code changes needed.
+```
+PAYPAL_ENV=sandbox            # "live" when you are ready to take real money
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+PAYPAL_WEBHOOK_ID=WH-...      # required in production
+```
+
+**Full walkthrough, including the webhook (which is not optional — without it, a donor who
+approves and then closes the tab is never charged): see [PAYMENTS-SETUP.md](PAYMENTS-SETUP.md).**
+
+Without those credentials, "Buy now" falls back to your external store link and donations
+are refused rather than silently recorded as paid.
 
 ## 4. Deploying it
 

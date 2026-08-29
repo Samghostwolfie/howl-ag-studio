@@ -38,6 +38,11 @@
     ],
     "features": "",
     "sysMin": "",
-    "sysRec": ""
+    "sysRec": "",
+    "fundraiserStatus": "open",
+    "fundraiserEnabled": true,
+    "fundraiserGoal": 5000,
+    "fundraiserTitle": "Community Development Fundraiser",
+    "fundraiserPitch": "Back this game directly to help fund art, sound, and expanded features."
   }
 ]
