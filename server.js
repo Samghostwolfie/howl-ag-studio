@@ -306,6 +306,28 @@ function normalizeGame(g) {
     ...fStats,
   };
 
+  const studioTeam = db.read('team', []);
+  const team = (g.team || []).map((m) => {
+    const memberId = String(m.memberId || '').trim();
+    const name = String(m.name || '').trim();
+    const matched = studioTeam.find((t) => (memberId && t.id === memberId) || (name && t.name.toLowerCase() === name.toLowerCase()));
+    const role = String(m.role || (matched ? matched.role : '')).trim();
+    const character = String(m.character || '').trim();
+    const isVoiceActor = /voice\s*(actor|actress|artist|over)?/i.test(role) || /voice/i.test(role) || !!character;
+
+    return {
+      memberId: memberId || (matched ? matched.id : ''),
+      name: name || (matched ? matched.name : ''),
+      role,
+      character,
+      isVoiceActor,
+      photo: (matched && matched.photo) ? matched.photo : (m.photo || ''),
+      photoFocus: (matched && matched.photoFocus) ? matched.photoFocus : null,
+      socials: (matched && matched.socials) ? matched.socials : null,
+      bio: (matched && matched.bio) ? matched.bio : '',
+    };
+  }).filter((m) => m.name || m.role || m.character);
+
   return {
     ...g,
     status,
@@ -322,7 +344,49 @@ function normalizeGame(g) {
     coverFocus,
     coverPos: focusToCss(coverFocus),
     media,
+    team,
   };
+}
+
+function parseGameTeam(body) {
+  if (!body) return [];
+  let raw = [];
+  if (body.gameTeam) {
+    if (typeof body.gameTeam === 'string') {
+      try {
+        const parsed = JSON.parse(body.gameTeam);
+        if (Array.isArray(parsed)) raw = parsed;
+      } catch (e) {}
+    } else if (Array.isArray(body.gameTeam)) {
+      raw = body.gameTeam;
+    }
+  }
+
+  // Fallback to array parameters if submitted via standard inputs
+  if (!raw.length && (body.teamMemberName || body['teamMemberName[]'])) {
+    const names = [].concat(body.teamMemberName || body['teamMemberName[]'] || []);
+    const roles = [].concat(body.teamMemberRole || body['teamMemberRole[]'] || []);
+    const characters = [].concat(body.teamMemberCharacter || body['teamMemberCharacter[]'] || []);
+    const memberIds = [].concat(body.teamMemberId || body['teamMemberId[]'] || []);
+
+    names.forEach((name, i) => {
+      raw.push({
+        memberId: memberIds[i] || '',
+        name: name || '',
+        role: roles[i] || '',
+        character: characters[i] || '',
+      });
+    });
+  }
+
+  return raw
+    .map((m) => ({
+      memberId: String(m.memberId || '').trim(),
+      name: String(m.name || '').trim(),
+      role: String(m.role || '').trim(),
+      character: String(m.character || '').trim(),
+    }))
+    .filter((m) => m.name || m.role || m.character);
 }
 
 // ---------- helpers ----------
@@ -1135,12 +1199,14 @@ app.get(`${A}`, requireAuth, (req, res) => {
 
 app.get(`${A}/games`, requireAuth, (req, res) => {
   const games = withCounts(getGames());
-  res.render('admin/dashboard', { title: 'Games', layout: false, tab: 'games', games, editingGame: null });
+  const team = db.read('team', []);
+  res.render('admin/dashboard', { title: 'Games', layout: false, tab: 'games', games, editingGame: null, team });
 });
 
 app.get(`${A}/games/new`, requireAuth, (req, res) => {
   const games = withCounts(getGames());
-  res.render('admin/dashboard', { title: 'New Game', layout: false, tab: 'games', games, editingGame: {} });
+  const team = db.read('team', []);
+  res.render('admin/dashboard', { title: 'New Game', layout: false, tab: 'games', games, editingGame: {}, team });
 });
 
 app.get(`${A}/games/:id/edit`, requireAuth, (req, res) => {
@@ -1150,7 +1216,8 @@ app.get(`${A}/games/:id/edit`, requireAuth, (req, res) => {
     req.flash('error', 'Game not found.');
     return res.redirect(`${A}/games`);
   }
-  res.render('admin/dashboard', { title: 'Edit Game', layout: false, tab: 'games', games, editingGame });
+  const team = db.read('team', []);
+  res.render('admin/dashboard', { title: 'Edit Game', layout: false, tab: 'games', games, editingGame, team });
 });
 
 const gameMediaUpload = uploadCover.fields([{ name: 'cover', maxCount: 1 }]);
@@ -1218,6 +1285,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     developer: (developer || '').trim(),
     publisher: (publisher || '').trim(),
     tags: (tags || '').split(',').map((t) => t.trim()).filter(Boolean),
+    team: parseGameTeam(req.body),
     features: (features || '').trim(),
     sysMin: (sysMin || '').trim(),
     sysRec: (sysRec || '').trim(),
@@ -1283,6 +1351,7 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     developer: (developer || '').trim(),
     publisher: (publisher || '').trim(),
     tags: (tags || '').split(',').map((t) => t.trim()).filter(Boolean),
+    team: parseGameTeam(req.body),
     features: (features || '').trim(),
     sysMin: (sysMin || '').trim(),
     sysRec: (sysRec || '').trim(),

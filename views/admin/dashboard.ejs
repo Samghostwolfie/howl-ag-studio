@@ -266,6 +266,44 @@
           </label>
         </fieldset>
 
+        <fieldset class="fieldset" id="gameTeamFieldset">
+          <legend>Development Team &amp; Voice Cast</legend>
+          <p class="hint" style="margin:0">
+            Credit the team members who worked on this game and specify their roles.
+            For <strong>Voice Actors</strong>, enter the character name they voiced.
+          </p>
+
+          <input type="hidden" name="gameTeam" id="gameTeamInput" value="<%= JSON.stringify((editingGame && editingGame.team) || []) %>" />
+
+          <datalist id="commonGameRoles">
+            <option value="Voice Actor"></option>
+            <option value="Lead Developer"></option>
+            <option value="Game Director"></option>
+            <option value="Game Designer"></option>
+            <option value="Writer"></option>
+            <option value="Music Composer"></option>
+            <option value="Audio Engineer"></option>
+            <option value="Sound Designer"></option>
+            <option value="Lead Artist"></option>
+            <option value="3D Artist"></option>
+            <option value="2D Artist"></option>
+            <option value="Concept Artist"></option>
+            <option value="Animator"></option>
+            <option value="Gameplay Programmer"></option>
+            <option value="Producer"></option>
+            <option value="QA Lead"></option>
+          </datalist>
+
+          <div id="gameTeamList" class="game-team-list">
+            <!-- Rendered dynamically by script -->
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; flex-wrap:wrap; gap:10px;">
+            <button type="button" id="addTeamMemberBtn" class="btn btn-ghost btn-sm">+ Add Team Member / Cast</button>
+            <span class="hint">Selecting a studio member auto-fills details. Voice actors reveal character input.</span>
+          </div>
+        </fieldset>
+
         <fieldset class="fieldset">
           <legend>System requirements</legend>
           <div class="form-grid">
@@ -1361,6 +1399,182 @@
     });
 
     syncStatus();
+  })();
+
+  // Game Team & Voice Cast builder
+  (function () {
+    var container = document.getElementById('gameTeamList');
+    var addBtn = document.getElementById('addTeamMemberBtn');
+    var hiddenInput = document.getElementById('gameTeamInput');
+    var gameForm = document.getElementById('gameForm');
+    if (!container || !addBtn || !hiddenInput) return;
+
+    var studioTeam = <%- JSON.stringify(typeof team !== 'undefined' ? team : []) %>;
+    var initialData = [];
+    try {
+      initialData = JSON.parse(hiddenInput.value || '[]');
+      if (!Array.isArray(initialData)) initialData = [];
+    } catch (e) {
+      initialData = [];
+    }
+
+    function isVaRole(role, char) {
+      return /voice\s*(actor|actress|artist|over)?/i.test(role || '') || /voice/i.test(role || '') || !!(char && char.trim());
+    }
+
+    function createRow(data) {
+      data = data || { memberId: '', name: '', role: '', character: '' };
+      var row = document.createElement('div');
+      row.className = 'game-team-row';
+
+      var matchedId = data.memberId;
+      if (!matchedId && data.name) {
+        var found = studioTeam.find(function(t) { return t.name.toLowerCase() === data.name.toLowerCase(); });
+        if (found) matchedId = found.id;
+      }
+
+      var isVA = isVaRole(data.role, data.character);
+
+      var optionsHtml = '<option value="">-- Choose from Studio Roster --</option>';
+      studioTeam.forEach(function (t) {
+        var sel = (matchedId === t.id) ? ' selected' : '';
+        optionsHtml += '<option value="' + t.id + '" data-name="' + escapeHtml(t.name) + '" data-role="' + escapeHtml(t.role) + '"' + sel + '>' + escapeHtml(t.name) + ' (' + escapeHtml(t.role) + ')</option>';
+      });
+      optionsHtml += '<option value="__custom__"' + (!matchedId && data.name ? ' selected' : '') + '>Custom / Guest Member</option>';
+
+      row.innerHTML =
+        '<div class="gtr-grid">' +
+          '<div class="gtr-cell gtr-select">' +
+            '<label class="gtr-label">Studio Roster' +
+              '<select class="gtr-roster-select">' + optionsHtml + '</select>' +
+            '</label>' +
+          '</div>' +
+          '<div class="gtr-cell gtr-name">' +
+            '<label class="gtr-label">Member Name' +
+              '<input type="text" class="gtr-input-name" name="teamMemberName" placeholder="Full name" value="' + escapeHtml(data.name || '') + '" required />' +
+            '</label>' +
+          '</div>' +
+          '<div class="gtr-cell gtr-role">' +
+            '<label class="gtr-label">Role on Game' +
+              '<input type="text" class="gtr-input-role" name="teamMemberRole" list="commonGameRoles" placeholder="e.g. Voice Actor, Composer" value="' + escapeHtml(data.role || '') + '" />' +
+            '</label>' +
+          '</div>' +
+          '<div class="gtr-cell gtr-char ' + (isVA ? 'is-va-active' : '') + '">' +
+            '<label class="gtr-label">' +
+              '<span class="gtr-char-label">Character Voiced ' + (isVA ? '<span class="va-badge">🎙️ Voice Actor</span>' : '<span class="hint">(Voice Actor)</span>') + '</span>' +
+              '<input type="text" class="gtr-input-char" name="teamMemberCharacter" placeholder="e.g. Diego (character name)" value="' + escapeHtml(data.character || '') + '" />' +
+            '</label>' +
+          '</div>' +
+          '<div class="gtr-cell gtr-action">' +
+            '<input type="hidden" class="gtr-input-id" name="teamMemberId" value="' + escapeHtml(matchedId || '') + '" />' +
+            '<button type="button" class="btn btn-danger btn-sm gtr-btn-remove" title="Remove member">&times;</button>' +
+          '</div>' +
+        '</div>';
+
+      var rosterSelect = row.querySelector('.gtr-roster-select');
+      var nameInput = row.querySelector('.gtr-input-name');
+      var roleInput = row.querySelector('.gtr-input-role');
+      var charInput = row.querySelector('.gtr-input-char');
+      var charCell = row.querySelector('.gtr-char');
+      var idInput = row.querySelector('.gtr-input-id');
+      var removeBtn = row.querySelector('.gtr-btn-remove');
+
+      function updateVaState() {
+        var va = isVaRole(roleInput.value, charInput.value);
+        if (va) {
+          charCell.classList.add('is-va-active');
+          charCell.querySelector('.gtr-char-label').innerHTML = 'Character Voiced <span class="va-badge">🎙️ Voice Actor</span>';
+        } else {
+          charCell.classList.remove('is-va-active');
+          charCell.querySelector('.gtr-char-label').innerHTML = 'Character Voiced <span class="hint">(Voice Actor)</span>';
+        }
+      }
+
+      rosterSelect.addEventListener('change', function () {
+        var opt = rosterSelect.options[rosterSelect.selectedIndex];
+        var selVal = rosterSelect.value;
+        if (selVal && selVal !== '__custom__') {
+          idInput.value = selVal;
+          nameInput.value = opt.getAttribute('data-name') || '';
+          var defaultRole = opt.getAttribute('data-role') || '';
+          if (defaultRole) {
+            roleInput.value = defaultRole;
+          }
+          updateVaState();
+          if (isVaRole(roleInput.value, '')) {
+            charInput.focus();
+          }
+        } else {
+          idInput.value = '';
+          if (selVal === '__custom__') {
+            nameInput.focus();
+          }
+        }
+        syncData();
+      });
+
+      roleInput.addEventListener('input', function () {
+        updateVaState();
+        syncData();
+      });
+
+      charInput.addEventListener('input', function () {
+        updateVaState();
+        syncData();
+      });
+
+      nameInput.addEventListener('input', syncData);
+
+      removeBtn.addEventListener('click', function () {
+        row.remove();
+        syncData();
+      });
+
+      return row;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function syncData() {
+      var rows = container.querySelectorAll('.game-team-row');
+      var list = [];
+      rows.forEach(function (r) {
+        var name = (r.querySelector('.gtr-input-name').value || '').trim();
+        var role = (r.querySelector('.gtr-input-role').value || '').trim();
+        var char = (r.querySelector('.gtr-input-char').value || '').trim();
+        var id = (r.querySelector('.gtr-input-id').value || '').trim();
+        if (name || role || char) {
+          list.push({ memberId: id, name: name, role: role, character: char });
+        }
+      });
+      hiddenInput.value = JSON.stringify(list);
+    }
+
+    if (initialData.length > 0) {
+      initialData.forEach(function (d) {
+        container.appendChild(createRow(d));
+      });
+    }
+
+    addBtn.addEventListener('click', function () {
+      var row = createRow();
+      container.appendChild(row);
+      syncData();
+      var sel = row.querySelector('.gtr-roster-select');
+      if (sel) sel.focus();
+    });
+
+    if (gameForm) {
+      gameForm.addEventListener('submit', syncData);
+    }
   })();
 </script>
 <script src="/js/admin.js"></script>

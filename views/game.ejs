@@ -454,6 +454,12 @@
             <dd><%= game.publisher %></dd>
           </div>
           <% } %>
+          <% if (game.team && game.team.length) { %>
+          <div class="info-row">
+            <dt>Credits</dt>
+            <dd><a href="#credits" style="color:var(--acid); text-decoration:none;"><%= game.team.length %> team &amp; cast &darr;</a></dd>
+          </div>
+          <% } %>
           <% if (game.platforms && game.platforms.length) { %>
           <div class="info-row">
             <dt>Platforms</dt>
@@ -515,6 +521,59 @@
     </aside>
   </div>
 </section>
+
+<% var teamList = (game.team && game.team.length) ? game.team : []; %>
+<% if (teamList.length) { %>
+  <section class="section game-credits-section" id="credits">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Development Team &amp; Cast</p>
+        <h2>Meet the team behind <%= game.title %></h2>
+        <p class="lead">The creators, artists, designers, and voice talent bringing <%= game.title %> to life.</p>
+      </div>
+
+      <div class="game-credits-grid">
+        <% teamList.forEach(function (member) { %>
+          <div class="game-credit-card <%= member.isVoiceActor ? 'is-va-card' : '' %>">
+            <div class="credit-avatar-wrap">
+              <% if (member.photo) { %>
+                <img src="<%= resolveUploadUrl('team', member.photo) %>" alt="<%= member.name %>"
+                     style="object-position:<%= (member.photoFocus && member.photoFocus.x != null ? member.photoFocus.x : 50) %>% <%= (member.photoFocus && member.photoFocus.y != null ? member.photoFocus.y : 50) %>%"
+                     referrerpolicy="no-referrer" loading="lazy" />
+              <% } else { %>
+                <span class="credit-initials"><%= member.name.split(' ').map(function(n){return n[0]}).join('').slice(0,2).toUpperCase() %></span>
+              <% } %>
+              <% if (member.isVoiceActor) { %>
+                <span class="credit-type-badge">🎙️ Voice Cast</span>
+              <% } %>
+            </div>
+
+            <div class="credit-body">
+              <h3 class="credit-name"><%= member.name %></h3>
+              <p class="credit-role"><%= member.role || (member.isVoiceActor ? 'Voice Actor' : 'Team Member') %></p>
+
+              <% if (member.character) { %>
+                <div class="credit-character-pill">
+                  <span class="char-role-label">Voice of</span>
+                  <strong class="char-role-name"><%= member.character %></strong>
+                </div>
+              <% } %>
+
+              <% var ms = member.socials || {}; %>
+              <% if (ms.x || ms.linkedin || ms.itch) { %>
+                <div class="credit-socials">
+                  <% if (ms.x) { %><a href="<%= ms.x %>" target="_blank" rel="noopener">X</a><% } %>
+                  <% if (ms.linkedin) { %><a href="<%= ms.linkedin %>" target="_blank" rel="noopener">LinkedIn</a><% } %>
+                  <% if (ms.itch) { %><a href="<%= ms.itch %>" target="_blank" rel="noopener">itch.io</a><% } %>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+<% } %>
 
 <% var voiceList = (typeof voices !== 'undefined' && voices) ? voices : []; %>
 <% var devlogList = (typeof devlog !== 'undefined' && devlog) ? devlog : []; %>

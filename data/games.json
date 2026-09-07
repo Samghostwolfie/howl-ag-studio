@@ -43,6 +43,44 @@
     "fundraiserEnabled": true,
     "fundraiserGoal": 5000,
     "fundraiserTitle": "Community Development Fundraiser",
-    "fundraiserPitch": "Back this game directly to help fund art, sound, and expanded features."
+    "fundraiserPitch": "Back this game directly to help fund art, sound, and expanded features.",
+    "team": [
+      {
+        "memberId": "t_1787130299532",
+        "name": "Atiba Ifeoluwa",
+        "role": "Founder / Lead",
+        "character": ""
+      },
+      {
+        "memberId": "t_1787130591679",
+        "name": "Charles W. Morton",
+        "role": "Voice Actor",
+        "character": "Diego"
+      },
+      {
+        "memberId": "t_1787130548782",
+        "name": "Massenburg Studios",
+        "role": "Music Composer",
+        "character": ""
+      },
+      {
+        "memberId": "t_1787130622378",
+        "name": "Jamsies",
+        "role": "Audio engineer",
+        "character": ""
+      },
+      {
+        "memberId": "t_1787130670375",
+        "name": "Tres <(°~°)>",
+        "role": "Writer",
+        "character": ""
+      },
+      {
+        "memberId": "t_1787130717615",
+        "name": "Alex Jewson",
+        "role": "Voice Actor",
+        "character": "Zipacna Transit AI"
+      }
+    ]
   }
 ]
