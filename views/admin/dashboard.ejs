@@ -304,6 +304,26 @@
           </div>
         </fieldset>
 
+        <fieldset class="fieldset" id="gameDownloadsFieldset">
+          <legend>Downloads, Builds &amp; DLCs</legend>
+          <p class="hint" style="margin:0">
+            Add playable builds, prototypes, demos, complete games, and DLC packs hosted on <strong>Google Drive</strong> (or direct link).
+            Players can pick their destination folder and download in real-time with an animated progress HUD.
+          </p>
+
+          <input type="hidden" name="gameDownloads" id="gameDownloadsInput" value="<%= JSON.stringify((editingGame && editingGame.downloads) || []) %>" />
+
+          <div id="gameDownloadsList" class="game-downloads-list">
+            <!-- Rendered dynamically by script -->
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; gap:10px;">
+            <button type="button" id="addDownloadBtn" class="btn btn-ghost btn-sm">+ Add Download / Build / DLC</button>
+            <span class="hint">Switchable build types: <strong>Prototype</strong>, <strong>Demo</strong>, <strong>Complete Game</strong>, and <strong>DLC</strong>.</span>
+          </div>
+        </fieldset>
+
+
         <fieldset class="fieldset">
           <legend>System requirements</legend>
           <div class="form-grid">
@@ -1576,6 +1596,192 @@
       gameForm.addEventListener('submit', syncData);
     }
   })();
+
+    // Game Downloads, Builds & DLCs builder
+    (function () {
+      var container = document.getElementById('gameDownloadsList');
+      var addBtn = document.getElementById('addDownloadBtn');
+      var hiddenInput = document.getElementById('gameDownloadsInput');
+      var gameForm = document.getElementById('gameForm');
+      if (!container || !addBtn || !hiddenInput) return;
+
+      var initialData = [];
+      try {
+        initialData = JSON.parse(hiddenInput.value || '[]');
+        if (!Array.isArray(initialData)) initialData = [];
+      } catch (e) {
+        initialData = [];
+      }
+
+      var typeConfigs = {
+        prototype: { label: 'Prototype', icon: '🧪' },
+        demo: { label: 'Demo', icon: '🎮' },
+        full: { label: 'Complete Game', icon: '👑' },
+        dlc: { label: 'DLC', icon: '⚡' }
+      };
+
+      function escapeAttr(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      function createDownloadRow(data) {
+        data = data || {
+          id: 'dl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          type: 'demo',
+          title: '',
+          url: '',
+          version: '',
+          platform: 'windows',
+          fileSize: '',
+          description: ''
+        };
+
+        var row = document.createElement('div');
+        row.className = 'gdl-row';
+        row.setAttribute('data-id', data.id);
+
+        var currentType = (data.type || 'demo').toLowerCase();
+        if (!typeConfigs[currentType]) currentType = 'demo';
+
+        var typeTabsHtml = Object.keys(typeConfigs).map(function (key) {
+          var cfg = typeConfigs[key];
+          var isActive = key === currentType;
+          return (
+            '<button type="button" class="gdl-type-tab ' + (isActive ? 'is-active gdl-tab-' + key : '') + '" data-type="' + key + '">' +
+              '<span class="gdl-tab-icon">' + cfg.icon + '</span> ' + cfg.label +
+            '</button>'
+          );
+        }).join('');
+
+        row.innerHTML =
+          '<div class="gdl-top-bar">' +
+            '<div class="gdl-type-group">' +
+              '<span class="gdl-type-title">Build Type:</span>' +
+              '<div class="gdl-type-tabs">' + typeTabsHtml + '</div>' +
+              '<input type="hidden" class="gdl-input-type" value="' + escapeAttr(currentType) + '" />' +
+            '</div>' +
+            '<button type="button" class="btn btn-danger btn-sm gdl-btn-remove" title="Remove download">&times; Remove</button>' +
+          '</div>' +
+          '<div class="gdl-fields-grid">' +
+            '<div class="gdl-cell gdl-cell-title">' +
+              '<label class="gdl-field-label">Release / Build Title' +
+                '<input type="text" class="gdl-input-title" placeholder="e.g. Home Prototype v0.1 (Unreal Engine 5)" value="' + escapeAttr(data.title || '') + '" required />' +
+              '</label>' +
+            '</div>' +
+            '<div class="gdl-cell gdl-cell-url">' +
+              '<label class="gdl-field-label">Google Drive Share Link (or Direct URL)' +
+                '<input type="url" class="gdl-input-url" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" value="' + escapeAttr(data.url || '') + '" required />' +
+              '</label>' +
+            '</div>' +
+            '<div class="gdl-cell gdl-cell-version">' +
+              '<label class="gdl-field-label">Version / Build' +
+                '<input type="text" class="gdl-input-version" placeholder="e.g. v0.1.2 or Alpha 2026.09" value="' + escapeAttr(data.version || '') + '" />' +
+              '</label>' +
+            '</div>' +
+            '<div class="gdl-cell gdl-cell-platform">' +
+              '<label class="gdl-field-label">Platform' +
+                '<select class="gdl-select-platform">' +
+                  '<option value="windows"' + (data.platform === 'windows' ? ' selected' : '') + '>Windows (PC)</option>' +
+                  '<option value="mac"' + (data.platform === 'mac' ? ' selected' : '') + '>macOS</option>' +
+                  '<option value="linux"' + (data.platform === 'linux' ? ' selected' : '') + '>Linux</option>' +
+                  '<option value="all"' + (data.platform === 'all' ? ' selected' : '') + '>All Platforms</option>' +
+                '</select>' +
+              '</label>' +
+            '</div>' +
+            '<div class="gdl-cell gdl-cell-size">' +
+              '<label class="gdl-field-label">File Size (estimate)' +
+                '<input type="text" class="gdl-input-size" placeholder="e.g. 1.8 GB" value="' + escapeAttr(data.fileSize || '') + '" />' +
+              '</label>' +
+            '</div>' +
+            '<div class="gdl-cell gdl-cell-desc">' +
+              '<label class="gdl-field-label">Release Notes / Description' +
+                '<input type="text" class="gdl-input-desc" placeholder="e.g. Early access prototype with level 1 and combat sandbox." value="' + escapeAttr(data.description || '') + '" />' +
+              '</label>' +
+            '</div>' +
+          '</div>';
+
+        var typeInput = row.querySelector('.gdl-input-type');
+        var typeTabs = row.querySelectorAll('.gdl-type-tab');
+
+        typeTabs.forEach(function (tab) {
+          tab.addEventListener('click', function () {
+            var selectedType = tab.getAttribute('data-type');
+            typeInput.value = selectedType;
+            typeTabs.forEach(function (t) {
+              var k = t.getAttribute('data-type');
+              t.className = 'gdl-type-tab' + (k === selectedType ? ' is-active gdl-tab-' + k : '');
+            });
+            syncData();
+          });
+        });
+
+        row.querySelector('.gdl-btn-remove').addEventListener('click', function () {
+          row.remove();
+          syncData();
+        });
+
+        row.querySelectorAll('input, select').forEach(function (el) {
+          el.addEventListener('input', syncData);
+          el.addEventListener('change', syncData);
+        });
+
+        return row;
+      }
+
+      function syncData() {
+        var rows = container.querySelectorAll('.gdl-row');
+        var list = [];
+        rows.forEach(function (r) {
+          var id = r.getAttribute('data-id') || '';
+          var type = (r.querySelector('.gdl-input-type') || {}).value || 'demo';
+          var title = ((r.querySelector('.gdl-input-title') || {}).value || '').trim();
+          var url = ((r.querySelector('.gdl-input-url') || {}).value || '').trim();
+          var version = ((r.querySelector('.gdl-input-version') || {}).value || '').trim();
+          var platform = ((r.querySelector('.gdl-select-platform') || {}).value || 'windows').trim();
+          var fileSize = ((r.querySelector('.gdl-input-size') || {}).value || '').trim();
+          var description = ((r.querySelector('.gdl-input-desc') || {}).value || '').trim();
+
+          if (title || url) {
+            list.push({
+              id: id,
+              type: type,
+              title: title,
+              url: url,
+              version: version,
+              platform: platform,
+              fileSize: fileSize,
+              description: description
+            });
+          }
+        });
+        hiddenInput.value = JSON.stringify(list);
+      }
+
+      if (initialData.length > 0) {
+        initialData.forEach(function (d) {
+          container.appendChild(createDownloadRow(d));
+        });
+      }
+
+      addBtn.addEventListener('click', function () {
+        var newRow = createDownloadRow();
+        container.appendChild(newRow);
+        syncData();
+        var titleInput = newRow.querySelector('.gdl-input-title');
+        if (titleInput) titleInput.focus();
+      });
+
+      if (gameForm) {
+        gameForm.addEventListener('submit', syncData);
+      }
+    })();
+
 </script>
 <script src="/js/admin.js"></script>
 </body>

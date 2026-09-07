@@ -522,6 +522,86 @@
   </div>
 </section>
 
+
+  <% var downloadsList = (game.downloads && game.downloads.length) ? game.downloads : []; %>
+  <% if (downloadsList.length) { %>
+    <section class="section game-downloads-section" id="downloads">
+      <div class="container">
+        <div class="section-head row-head" style="align-items: flex-end; margin-bottom: 24px;">
+          <div>
+            <p class="eyebrow" style="color: var(--acid); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.8rem; margin: 0 0 4px 0;">Play &amp; Experience</p>
+            <h2 style="margin:0; font-size: 2rem; color: #fff;">Downloads, Builds &amp; DLCs</h2>
+            <p class="lead" style="margin-top:6px;">Select a build to download directly to your computer. Streamed in real time with your choice of destination folder.</p>
+          </div>
+          <div class="downloads-filter-bar">
+            <button type="button" class="dl-filter-btn is-active" data-filter="all">All (<%= downloadsList.length %>)</button>
+            <% if (game.demoDownloads && game.demoDownloads.length) { %>
+              <button type="button" class="dl-filter-btn" data-filter="demo">🎮 Demos (<%= game.demoDownloads.length %>)</button>
+            <% } %>
+            <% if (game.prototypeDownloads && game.prototypeDownloads.length) { %>
+              <button type="button" class="dl-filter-btn" data-filter="prototype">🧪 Prototypes (<%= game.prototypeDownloads.length %>)</button>
+            <% } %>
+            <% if (game.fullDownloads && game.fullDownloads.length) { %>
+              <button type="button" class="dl-filter-btn" data-filter="full">👑 Full Game (<%= game.fullDownloads.length %>)</button>
+            <% } %>
+            <% if (game.dlcDownloads && game.dlcDownloads.length) { %>
+              <button type="button" class="dl-filter-btn" data-filter="dlc">⚡ DLCs (<%= game.dlcDownloads.length %>)</button>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="downloads-grid" id="downloadsGrid">
+          <% downloadsList.forEach(function (dl) { %>
+            <div class="download-card dl-type-<%= dl.type %>" data-type="<%= dl.type %>">
+              <div class="dl-card-top">
+                <div class="dl-type-badge <%= dl.typeBadgeClass %>">
+                  <span class="dl-type-icon"><%= dl.typeIcon %></span>
+                  <span class="dl-type-label"><%= dl.typeLabel %></span>
+                </div>
+                <% if (dl.version) { %>
+                  <span class="dl-version-tag"><%= dl.version %></span>
+                <% } %>
+              </div>
+
+              <h3 class="dl-title"><%= dl.title %></h3>
+
+              <% if (dl.description) { %>
+                <p class="dl-desc"><%= dl.description %></p>
+              <% } %>
+
+              <div class="dl-meta-row">
+                <span class="dl-meta-item">
+                  <span class="dl-meta-icon">🖥️</span>
+                  <%= dl.platform === 'windows' ? 'Windows PC' : (dl.platform === 'mac' ? 'macOS' : (dl.platform === 'linux' ? 'Linux' : 'All Platforms')) %>
+                </span>
+                <% if (dl.fileSize) { %>
+                  <span class="dl-meta-item">
+                    <span class="dl-meta-icon">📦</span>
+                    <%= dl.fileSize %>
+                  </span>
+                <% } %>
+                <span class="dl-meta-item dl-host-item">
+                  <span class="dl-meta-icon">☁️</span> Google Drive
+                </span>
+              </div>
+
+              <div class="dl-card-action">
+                <button type="button" class="btn btn-acid btn-block btn-start-download"
+                        data-game-slug="<%= game.slug %>"
+                        data-download-id="<%= dl.id %>"
+                        data-download-title="<%= dl.title %>"
+                        data-download-type="<%= dl.typeLabel %>">
+                  <span class="btn-dl-arrow">⬇</span>
+                  <span>Download Now</span>
+                </button>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </section>
+  <% } %>
+
 <% var teamList = (game.team && game.team.length) ? game.team : []; %>
 <% if (teamList.length) { %>
   <section class="section game-credits-section" id="credits">
@@ -776,5 +856,406 @@
     </div>
   </div>
 </section>
+
+
+<!-- Real-Time Game Downloader HUD Modal -->
+<div id="gameDownloadModal" class="dl-modal-backdrop" style="display:none;" aria-hidden="true">
+  <div class="dl-modal-box">
+    <button type="button" class="dl-modal-close" id="dlModalCloseBtn" aria-label="Close modal">&times;</button>
+
+    <div class="dl-modal-header">
+      <div class="dl-modal-badge" id="dlModalTypeTag">PROTOTYPE</div>
+      <h3 class="dl-modal-title" id="dlModalTitle">Download Package</h3>
+      <div class="dl-modal-dest" id="dlModalDest">
+        <span class="dest-icon">📁</span>
+        <span class="dest-label">Save Location:</span>
+        <span class="dest-path" id="dlModalDestPath">Prompting destination folder...</span>
+      </div>
+    </div>
+
+    <!-- HUD Visualizer Stage -->
+    <div class="dl-hud-stage">
+      <!-- Cybernetic Circular Gauge -->
+      <div class="dl-gauge-wrap">
+        <svg class="dl-gauge-svg" viewBox="0 0 160 160">
+          <circle class="dl-gauge-bg" cx="80" cy="80" r="68"></circle>
+          <circle class="dl-gauge-progress" id="dlGaugeCircle" cx="80" cy="80" r="68"></circle>
+        </svg>
+        <div class="dl-gauge-center">
+          <span class="dl-gauge-percent" id="dlGaugePercent">0%</span>
+          <span class="dl-gauge-status" id="dlGaugeStatus">CONNECTING</span>
+        </div>
+      </div>
+
+      <!-- Cybernetic Neon Progress Bar -->
+      <div class="dl-progress-track">
+        <div class="dl-progress-fill" id="dlProgressBar" style="width: 0%;">
+          <div class="dl-progress-scanner"></div>
+        </div>
+      </div>
+
+      <!-- Real-Time Metrics Grid -->
+      <div class="dl-metrics-grid">
+        <div class="dl-metric-card">
+          <span class="metric-lbl">DOWNLOADED</span>
+          <span class="metric-val" id="dlMetricBytes">0.0 MB / --</span>
+        </div>
+        <div class="dl-metric-card">
+          <span class="metric-lbl">TRANSFER SPEED</span>
+          <span class="metric-val" id="dlMetricSpeed">-- MB/s</span>
+        </div>
+        <div class="dl-metric-card">
+          <span class="metric-lbl">ESTIMATED TIME</span>
+          <span class="metric-val" id="dlMetricEta">Calculating...</span>
+        </div>
+      </div>
+
+      <!-- Cybernetic Activity Console Log -->
+      <div class="dl-console-wrap">
+        <div class="dl-console-header">
+          <span class="console-indicator"></span>
+          <span>STREAM TRANSFER LOG</span>
+        </div>
+        <div class="dl-console-body" id="dlConsoleLog">
+          <div class="log-line log-info">[STREAM] Initializing connection with Google Drive...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="dl-modal-footer">
+      <button type="button" class="btn btn-ghost btn-sm" id="dlCancelBtn">Cancel Download</button>
+      <button type="button" class="btn btn-acid btn-sm" id="dlDoneBtn" style="display:none;">Download Complete &check;</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Filter tabs for downloads section
+  (function () {
+    var filterBtns = document.querySelectorAll('.dl-filter-btn');
+    var cards = document.querySelectorAll('#downloadsGrid .download-card');
+    if (!filterBtns.length || !cards.length) return;
+
+    filterBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        filterBtns.forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        var filter = btn.getAttribute('data-filter');
+
+        cards.forEach(function (card) {
+          if (filter === 'all' || card.getAttribute('data-type') === filter) {
+            card.style.display = '';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+  })();
+
+  // Real-Time Downloader Controller with Folder Selection & Progress HUD
+  (function () {
+    var modal = document.getElementById('gameDownloadModal');
+    var closeBtn = document.getElementById('dlModalCloseBtn');
+    var cancelBtn = document.getElementById('dlCancelBtn');
+    var doneBtn = document.getElementById('dlDoneBtn');
+
+    var typeTag = document.getElementById('dlModalTypeTag');
+    var modalTitle = document.getElementById('dlModalTitle');
+    var destPath = document.getElementById('dlModalDestPath');
+
+    var gaugeCircle = document.getElementById('dlGaugeCircle');
+    var gaugePercent = document.getElementById('dlGaugePercent');
+    var gaugeStatus = document.getElementById('dlGaugeStatus');
+    var progressBar = document.getElementById('dlProgressBar');
+
+    var metricBytes = document.getElementById('dlMetricBytes');
+    var metricSpeed = document.getElementById('dlMetricSpeed');
+    var metricEta = document.getElementById('dlMetricEta');
+    var consoleLog = document.getElementById('dlConsoleLog');
+
+    if (!modal) return;
+
+    // Circumference for r=68: 2 * PI * 68 ≈ 427.25
+    var GAUGE_CIRCUMFERENCE = 427.25;
+    if (gaugeCircle) {
+      gaugeCircle.style.strokeDasharray = GAUGE_CIRCUMFERENCE;
+      gaugeCircle.style.strokeDashoffset = GAUGE_CIRCUMFERENCE;
+    }
+
+    var activeAbortController = null;
+    var activeWritableStream = null;
+
+    function addLog(msg, type) {
+      if (!consoleLog) return;
+      var line = document.createElement('div');
+      line.className = 'log-line ' + (type ? 'log-' + type : 'log-info');
+      line.textContent = msg;
+      consoleLog.appendChild(line);
+      consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    function resetModal() {
+      if (gaugeCircle) gaugeCircle.style.strokeDashoffset = GAUGE_CIRCUMFERENCE;
+      if (gaugePercent) gaugePercent.textContent = '0%';
+      if (gaugeStatus) {
+        gaugeStatus.textContent = 'CONNECTING';
+        gaugeStatus.className = 'dl-gauge-status';
+      }
+      if (progressBar) progressBar.style.width = '0%';
+      if (metricBytes) metricBytes.textContent = '0.0 MB / --';
+      if (metricSpeed) metricSpeed.textContent = '-- MB/s';
+      if (metricEta) metricEta.textContent = 'Calculating...';
+      if (consoleLog) consoleLog.innerHTML = '';
+      if (cancelBtn) {
+        cancelBtn.style.display = '';
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = 'Cancel Download';
+      }
+      if (doneBtn) doneBtn.style.display = 'none';
+      if (closeBtn) closeBtn.style.display = '';
+    }
+
+    function openModal() {
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      if (activeAbortController) {
+        activeAbortController.abort();
+        activeAbortController = null;
+      }
+      if (activeWritableStream) {
+        try { activeWritableStream.abort(); } catch(e){}
+        activeWritableStream = null;
+      }
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', function () {
+      if (confirm('Cancel this active download?')) {
+        addLog('[ABORTED] Download cancelled by user.', 'warn');
+        closeModal();
+      }
+    });
+    if (doneBtn) doneBtn.addEventListener('click', closeModal);
+
+    // Format seconds to mm:ss
+    function formatTime(sec) {
+      if (sec == null || isNaN(sec) || sec < 0) return 'Calculating...';
+      if (sec > 3600) {
+        var h = Math.floor(sec / 3600);
+        var m = Math.floor((sec % 3600) / 60);
+        return h + 'h ' + m + 'm remaining';
+      }
+      var mins = Math.floor(sec / 60);
+      var secs = Math.floor(sec % 60);
+      return (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs + ' remaining';
+    }
+
+    // Format bytes to MB/GB
+    function formatBytes(bytes) {
+      if (!bytes || bytes <= 0) return '0.0 MB';
+      if (bytes >= 1073741824) {
+        return (bytes / 1073741824).toFixed(2) + ' GB';
+      }
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    async function startDownload(btn) {
+      var gameSlug = btn.getAttribute('data-game-slug');
+      var downloadId = btn.getAttribute('data-download-id');
+      var title = btn.getAttribute('data-download-title');
+      var typeName = btn.getAttribute('data-download-type');
+
+      resetModal();
+      typeTag.textContent = (typeName || 'BUILD').toUpperCase();
+      modalTitle.textContent = title || 'Game Build';
+      destPath.textContent = 'Contacting server for package info...';
+
+      openModal();
+      addLog('[HANDSHAKE] Querying package metadata for: ' + title);
+
+      var info;
+      try {
+        var infoRes = await fetch('/api/games/' + gameSlug + '/downloads/' + downloadId + '/info');
+        if (!infoRes.ok) throw new Error('Package information unavailable');
+        info = await infoRes.json();
+      } catch (err) {
+        addLog('[ERROR] Failed to fetch package details: ' + err.message, 'err');
+        destPath.textContent = 'Error connecting to package.';
+        if (gaugeStatus) gaugeStatus.textContent = 'FAILED';
+        return;
+      }
+
+      var suggestedName = info.filename || (gameSlug + '-' + info.type + '.zip');
+      var fileHandle = null;
+      var writableStream = null;
+
+      // STEP 1: Prompt user for destination folder / filename using File System Access API
+      if (window.showSaveFilePicker) {
+        destPath.textContent = 'Prompting destination folder on your device...';
+        addLog('[PROMPT] Opening native Save As dialog...');
+        try {
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: suggestedName,
+            types: [{
+              description: 'Game Package or Installer',
+              accept: {
+                'application/octet-stream': ['.zip', '.exe', '.7z', '.rar', '.iso', '.dmg', '.tar.gz', '.pkg']
+              }
+            }]
+          });
+          writableStream = await fileHandle.createWritable();
+          activeWritableStream = writableStream;
+          destPath.textContent = fileHandle.name;
+          addLog('[DESTINATION] Destination approved: ' + fileHandle.name, 'success');
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            addLog('[INFO] Save dialog closed without selection.', 'warn');
+            closeModal();
+            return;
+          }
+          console.warn('showSaveFilePicker fallback:', err);
+          destPath.textContent = suggestedName + ' (Browser Default Downloads)';
+          addLog('[NOTICE] Direct folder access bypassed. Saving via browser download.', 'info');
+        }
+      } else {
+        destPath.textContent = suggestedName + ' (Browser Default Downloads)';
+        addLog('[NOTICE] Browser does not support direct folder picker. Streaming to default downloads folder.', 'info');
+      }
+
+      // STEP 2: Initiate Real-Time Stream
+      var controller = new AbortController();
+      activeAbortController = controller;
+
+      gaugeStatus.textContent = 'STREAMING';
+      addLog('[STREAM] Starting real-time data stream from Google Drive...');
+
+      var streamUrl = info.streamUrl;
+      var totalBytes = info.size || 0;
+      var loadedBytes = 0;
+      var chunks = [];
+
+      try {
+        var response = await fetch(streamUrl, { signal: controller.signal });
+        if (!response.ok) throw new Error('Stream response returned status ' + response.status);
+
+        var headerLen = Number(response.headers.get('content-length'));
+        if (headerLen && headerLen > 0) totalBytes = headerLen;
+
+        var reader = response.body.getReader();
+        var startTime = performance.now();
+        var lastTime = startTime;
+        var lastLoaded = 0;
+        var currentSpeed = 0;
+
+        addLog('[STREAM] Payload connection established. Total: ' + (totalBytes > 0 ? formatBytes(totalBytes) : 'Dynamic stream'));
+
+        while (true) {
+          var res = await reader.read();
+          if (res.done) break;
+
+          var value = res.value;
+          loadedBytes += value.length;
+
+          if (writableStream) {
+            await writableStream.write(value);
+          } else {
+            chunks.push(value);
+          }
+
+          var now = performance.now();
+          var elapsed = (now - lastTime) / 1000;
+          if (elapsed >= 0.25) {
+            var diff = loadedBytes - lastLoaded;
+            currentSpeed = diff / elapsed;
+            lastTime = now;
+            lastLoaded = loadedBytes;
+          }
+
+          var percent = totalBytes > 0 ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100)) : 0;
+          var offset = GAUGE_CIRCUMFERENCE - (percent / 100) * GAUGE_CIRCUMFERENCE;
+          if (gaugeCircle) gaugeCircle.style.strokeDashoffset = offset;
+          if (gaugePercent) gaugePercent.textContent = (totalBytes > 0 ? percent : Math.round(loadedBytes / 1048576)) + (totalBytes > 0 ? '%' : ' MB');
+          if (progressBar) progressBar.style.width = percent + '%';
+
+          if (metricBytes) {
+            metricBytes.textContent = formatBytes(loadedBytes) + ' / ' + (totalBytes > 0 ? formatBytes(totalBytes) : '--');
+          }
+          if (metricSpeed) {
+            metricSpeed.textContent = (currentSpeed > 0 ? (currentSpeed / 1048576).toFixed(1) : '0.0') + ' MB/s';
+          }
+          if (metricEta) {
+            var rem = Math.max(0, totalBytes - loadedBytes);
+            metricEta.textContent = currentSpeed > 0 ? formatTime(rem / currentSpeed) : 'Calculating...';
+          }
+        }
+
+        // STEP 3: Finalize and Save
+        addLog('[FINALIZING] Flushing buffer to storage...', 'info');
+        if (writableStream) {
+          await writableStream.close();
+          activeWritableStream = null;
+        } else {
+          var blob = new Blob(chunks, { type: 'application/octet-stream' });
+          var blobUrl = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = suggestedName;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+          }, 4000);
+        }
+
+        // COMPLETE!
+        if (gaugeCircle) gaugeCircle.style.strokeDashoffset = 0;
+        if (gaugePercent) gaugePercent.textContent = '100%';
+        if (progressBar) progressBar.style.width = '100%';
+        if (gaugeStatus) {
+          gaugeStatus.textContent = 'COMPLETED';
+          gaugeStatus.className = 'dl-gauge-status is-done';
+        }
+        if (metricEta) metricEta.textContent = 'Finished in ' + ((performance.now() - startTime) / 1000).toFixed(1) + 's';
+
+        addLog('[SUCCESS] 100% Downloaded and written successfully!', 'success');
+        addLog('[READY] Package is ready in your folder. Enjoy the game!', 'success');
+
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        if (doneBtn) {
+          doneBtn.style.display = '';
+          doneBtn.textContent = 'Done &amp; Ready to Play';
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          addLog('[ABORTED] Download cancelled.', 'warn');
+        } else {
+          console.error('[download-error]', err);
+          addLog('[ERROR] ' + err.message, 'err');
+          if (gaugeStatus) gaugeStatus.textContent = 'ERROR';
+        }
+      } finally {
+        activeAbortController = null;
+      }
+    }
+
+    // Attach to all download buttons
+    var downloadBtns = document.querySelectorAll('.btn-start-download');
+    downloadBtns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        startDownload(b);
+      });
+    });
+  })();
+</script>
 
 <%- include('partials/footer') %>

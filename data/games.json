@@ -81,6 +81,48 @@
         "role": "Voice Actor",
         "character": "Zipacna Transit AI"
       }
+    ],
+    "downloads": [
+      {
+        "id": "dl_proto_1787490001",
+        "type": "prototype",
+        "title": "Home Alpha v0.1 Prototype (Unreal Engine 5)",
+        "url": "https://drive.google.com/file/d/1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g/view?usp=sharing",
+        "version": "v0.1.0-alpha",
+        "platform": "windows",
+        "fileSize": "1.85 GB",
+        "description": "First playable vertical slice featuring Chapter 1, combat mechanics, and debug sandbox."
+      },
+      {
+        "id": "dl_demo_1787490002",
+        "type": "demo",
+        "title": "Home Official Teaser Demo",
+        "url": "https://drive.google.com/file/d/1blKajI9mZafLOKXyj7MtGqD5egKkS6I6/view?usp=sharing",
+        "version": "v1.0-demo",
+        "platform": "windows",
+        "fileSize": "650 MB",
+        "description": "Free public playable slice. Experience the opening atmosphere of Zipacna Transit Station."
+      },
+      {
+        "id": "dl_full_1787490003",
+        "type": "full",
+        "title": "Home Complete Game",
+        "url": "https://drive.google.com/file/d/1o9ybS44EDmvvduOCQiqVBu_6WrXr-4Ac/view?usp=sharing",
+        "version": "v1.0.0",
+        "platform": "windows",
+        "fileSize": "8.4 GB",
+        "description": "The full psychological horror survival experience. Complete story campaign."
+      },
+      {
+        "id": "dl_dlc_1787490004",
+        "type": "dlc",
+        "title": "Home: Original Soundtrack & Digital Artbook DLC",
+        "url": "https://drive.google.com/file/d/1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g/view?usp=sharing",
+        "version": "DLC-1.0",
+        "platform": "all",
+        "fileSize": "320 MB",
+        "description": "Complete high-fidelity FLAC/MP3 soundtrack by Massenburg Studios and 60-page digital concept artbook."
+      }
     ]
   }
 ]

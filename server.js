@@ -348,6 +348,90 @@ function normalizeGame(g) {
   };
 }
 
+
+const DOWNLOAD_TYPES = {
+  prototype: { id: 'prototype', label: 'Prototype', badgeClass: 'badge-prototype', icon: '🧪' },
+  demo: { id: 'demo', label: 'Demo', badgeClass: 'badge-demo', icon: '🎮' },
+  full: { id: 'full', label: 'Complete Game', badgeClass: 'badge-full', icon: '👑' },
+  dlc: { id: 'dlc', label: 'DLC', badgeClass: 'badge-dlc', icon: '⚡' },
+};
+
+function extractDriveId(url) {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
+                url.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
+                url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
+function normalizeDownload(d) {
+  if (!d) return null;
+  const typeKey = String(d.type || 'demo').toLowerCase();
+  const typeInfo = DOWNLOAD_TYPES[typeKey] || DOWNLOAD_TYPES.demo;
+  const driveId = extractDriveId(d.url);
+  const isGoogleDrive = !!driveId;
+
+  return {
+    id: String(d.id || ('dl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7))),
+    type: typeInfo.id,
+    typeLabel: typeInfo.label,
+    typeBadgeClass: typeInfo.badgeClass,
+    typeIcon: typeInfo.icon,
+    title: String(d.title || '').trim() || typeInfo.label,
+    url: String(d.url || '').trim(),
+    driveId,
+    isGoogleDrive,
+    version: String(d.version || '').trim(),
+    platform: String(d.platform || 'windows').toLowerCase(),
+    fileSize: String(d.fileSize || '').trim(),
+    description: String(d.description || '').trim(),
+    createdAt: d.createdAt || new Date().toISOString(),
+  };
+}
+
+function parseGameDownloads(body) {
+  if (!body) return [];
+  let raw = [];
+  if (body.gameDownloads) {
+    if (typeof body.gameDownloads === 'string') {
+      try {
+        const parsed = JSON.parse(body.gameDownloads);
+        if (Array.isArray(parsed)) raw = parsed;
+      } catch (e) {}
+    } else if (Array.isArray(body.gameDownloads)) {
+      raw = body.gameDownloads;
+    }
+  }
+
+  if (!raw.length && (body.downloadTitle || body['downloadTitle[]'])) {
+    const titles = [].concat(body.downloadTitle || body['downloadTitle[]'] || []);
+    const types = [].concat(body.downloadType || body['downloadType[]'] || []);
+    const urls = [].concat(body.downloadUrl || body['downloadUrl[]'] || []);
+    const versions = [].concat(body.downloadVersion || body['downloadVersion[]'] || []);
+    const platforms = [].concat(body.downloadPlatform || body['downloadPlatform[]'] || []);
+    const fileSizes = [].concat(body.downloadFileSize || body['downloadFileSize[]'] || []);
+    const descs = [].concat(body.downloadDescription || body['downloadDescription[]'] || []);
+    const ids = [].concat(body.downloadId || body['downloadId[]'] || []);
+
+    titles.forEach((title, i) => {
+      raw.push({
+        id: ids[i] || '',
+        title: title || '',
+        type: types[i] || 'demo',
+        url: urls[i] || '',
+        version: versions[i] || '',
+        platform: platforms[i] || 'windows',
+        fileSize: fileSizes[i] || '',
+        description: descs[i] || '',
+      });
+    });
+  }
+
+  return raw
+    .map(normalizeDownload)
+    .filter((d) => d && (d.title || d.url));
+}
+
 function parseGameTeam(body) {
   if (!body) return [];
   let raw = [];
@@ -1006,6 +1090,122 @@ app.get('/games/:slug/donate/cancel', (req, res) => {
   res.redirect(`/games/${game.slug}#fundraiser`);
 });
 
+
+// =====================================================================
+// Google Drive & Game Downloads API (Info & Real-Time Stream Proxy)
+// =====================================================================
+app.get('/api/games/:slug/downloads/:id/info', async (req, res) => {
+  try {
+    const games = getGames();
+    const game = games.find((g) => g.slug === req.params.slug || g.id === req.params.slug);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    const download = (game.downloads || []).find((d) => d.id === req.params.id);
+    if (!download) return res.status(404).json({ error: 'Download not found' });
+
+    let filename = `${game.slug}-${download.type}${download.version ? '-' + download.version : ''}.zip`;
+    let contentLength = 0;
+
+    let targetUrl = download.url;
+    if (download.driveId) {
+      targetUrl = `https://drive.usercontent.google.com/download?id=${download.driveId}&export=download&confirm=t`;
+    }
+
+    if (targetUrl) {
+      try {
+        const headRes = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
+        const disp = headRes.headers.get('content-disposition');
+        if (disp) {
+          const match = disp.match(/filename\*?=(?:UTF-8'')?"?([^";\n]+)"?/i);
+          if (match && match[1]) {
+            filename = decodeURIComponent(match[1].trim());
+          }
+        }
+        const len = headRes.headers.get('content-length');
+        if (len) contentLength = parseInt(len, 10) || 0;
+      } catch (err) {
+        console.warn('[download-info] Header probe error:', err.message);
+      }
+    }
+
+    return res.json({
+      id: download.id,
+      title: download.title,
+      type: download.type,
+      typeLabel: download.typeLabel,
+      typeBadgeClass: download.typeBadgeClass,
+      typeIcon: download.typeIcon,
+      version: download.version,
+      platform: download.platform,
+      fileSize: download.fileSize,
+      filename,
+      size: contentLength,
+      description: download.description,
+      streamUrl: `/api/games/${game.slug}/downloads/${download.id}/stream`,
+      directUrl: download.url,
+      isGoogleDrive: download.isGoogleDrive,
+    });
+  } catch (err) {
+    console.error('[download-info] Error:', err);
+    res.status(500).json({ error: 'Internal server error fetching download info' });
+  }
+});
+
+app.get('/api/games/:slug/downloads/:id/stream', async (req, res) => {
+  try {
+    const games = getGames();
+    const game = games.find((g) => g.slug === req.params.slug || g.id === req.params.slug);
+    if (!game) return res.status(404).send('Game not found');
+
+    const download = (game.downloads || []).find((d) => d.id === req.params.id);
+    if (!download) return res.status(404).send('Download not found');
+
+    let targetUrl = download.url;
+    if (download.driveId) {
+      targetUrl = `https://drive.usercontent.google.com/download?id=${download.driveId}&export=download&confirm=t`;
+    }
+
+    if (!targetUrl) return res.status(400).send('No download URL specified for this build');
+
+    const controller = new AbortController();
+    req.on('close', () => controller.abort());
+
+    const upstream = await fetch(targetUrl, {
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+
+    if (!upstream.ok && upstream.status !== 206) {
+      return res.status(upstream.status).send(`Upstream error: ${upstream.statusText}`);
+    }
+
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const contentLength = upstream.headers.get('content-length');
+    let contentDisp = upstream.headers.get('content-disposition');
+
+    if (!contentDisp) {
+      const fallbackName = `${game.slug}-${download.type}${download.version ? '-' + download.version : ''}.zip`;
+      contentDisp = `attachment; filename="${fallbackName}"`;
+    }
+
+    res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Content-Disposition', contentDisp);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    const { Readable } = require('stream');
+    const nodeStream = Readable.fromWeb(upstream.body);
+    nodeStream.pipe(res);
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error('[download-stream] Error:', err);
+    if (!res.headersSent) {
+      res.status(500).send('Failed to stream download');
+    }
+  }
+});
+
 // Purchase / download flow — handles free vs paid, with graceful fallbacks.
 app.get('/games/:slug/buy', async (req, res) => {
   const games = getGames();
@@ -1286,6 +1486,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     publisher: (publisher || '').trim(),
     tags: (tags || '').split(',').map((t) => t.trim()).filter(Boolean),
     team: parseGameTeam(req.body),
+    downloads: parseGameDownloads(req.body),
     features: (features || '').trim(),
     sysMin: (sysMin || '').trim(),
     sysRec: (sysRec || '').trim(),
