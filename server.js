@@ -1553,6 +1553,7 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     publisher: (publisher || '').trim(),
     tags: (tags || '').split(',').map((t) => t.trim()).filter(Boolean),
     team: parseGameTeam(req.body),
+    downloads: parseGameDownloads(req.body),
     features: (features || '').trim(),
     sysMin: (sysMin || '').trim(),
     sysRec: (sysRec || '').trim(),

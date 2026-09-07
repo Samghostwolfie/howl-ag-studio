@@ -112,7 +112,7 @@
         <a href="<%= adminPath %>/games" class="back-link">&larr; All games</a>
       </div>
 
-      <form id="gameForm" method="POST" action="<%= editingGame.id ? adminPath + '/games/' + editingGame.id : adminPath + '/games' %>" enctype="multipart/form-data" class="admin-form">
+      <form id="gameForm" novalidate method="POST" action="<%= editingGame.id ? adminPath + '/games/' + editingGame.id : adminPath + '/games' %>" enctype="multipart/form-data" class="admin-form">
         <div class="form-grid">
           <label>Title
             <input type="text" name="title" value="<%= editingGame.title || '' %>" required />
@@ -184,7 +184,7 @@
             <textarea name="videoLinks" rows="4" placeholder="https://youtu.be/xxxxxxxx&#10;https://drive.google.com/file/d/FILEID/view&#10;https://vimeo.com/123456789"><%= (editingGame.videoLinks || []).join('\n') %></textarea>
           </label>
           <label>Main trailer <span class="hint">optional — shown before the links above</span>
-            <input type="url" name="trailerUrl" value="<%= editingGame.trailerUrl || '' %>" placeholder="https://youtu.be/..." />
+            <input type="text" name="trailerUrl" value="<%= editingGame.trailerUrl || '' %>" placeholder="https://youtu.be/..." />
           </label>
         </fieldset>
 
@@ -223,7 +223,7 @@
           </div>
           <label>External store / download link
             <span class="hint">Steam, itch.io, a Drive link, or your own checkout — used as the buy link for released games and as the demo link for demos.</span>
-            <input type="url" name="externalStoreUrl" value="<%= editingGame.externalStoreUrl || '' %>" placeholder="https://store.steampowered.com/..." />
+            <input type="text" name="externalStoreUrl" value="<%= editingGame.externalStoreUrl || '' %>" placeholder="https://store.steampowered.com/..." />
           </label>
           <p class="hint">
             Free games with an uploaded build download straight from this site. Paid games use PayPal
@@ -262,7 +262,7 @@
             <textarea name="fundraiserPitch" rows="3" placeholder="Explain what the funds will be used for (e.g. voice acting, sound design, additional character art)..."><%= (editingGame.fundraiser && editingGame.fundraiser.pitch) || editingGame.fundraiserPitch || '' %></textarea>
           </label>
           <label>PayPal / External Donation Link <span class="hint">(optional — adds a direct PayPal / Ko-fi button)</span>
-            <input type="url" name="fundraiserPaypalUrl" value="<%= (editingGame.fundraiser && editingGame.fundraiser.paypalUrl) || editingGame.fundraiserPaypalUrl || '' %>" placeholder="https://paypal.me/yourstudio or https://ko-fi.com/yourstudio" />
+            <input type="text" name="fundraiserPaypalUrl" value="<%= (editingGame.fundraiser && editingGame.fundraiser.paypalUrl) || editingGame.fundraiserPaypalUrl || '' %>" placeholder="https://paypal.me/yourstudio or https://ko-fi.com/yourstudio" />
           </label>
         </fieldset>
 
@@ -344,7 +344,7 @@
           </p>
 
           <label>Cover Image URL <span class="hint">paste a direct image link</span>
-            <input type="url" name="coverImage" value="<%= editingGame.coverImage || '' %>" placeholder="https://i.imgur.com/example.png or https://drive.google.com/..." />
+            <input type="text" name="coverImage" value="<%= editingGame.coverImage || '' %>" placeholder="https://i.imgur.com/example.png or https://drive.google.com/..." />
           </label>
 
           <% if (editingGame.coverImage) { %>
@@ -1471,22 +1471,22 @@
           '</div>' +
           '<div class="gtr-cell gtr-name">' +
             '<label class="gtr-label">Member Name' +
-              '<input type="text" class="gtr-input-name" name="teamMemberName" placeholder="Full name" value="' + escapeHtml(data.name || '') + '" required />' +
+              '<input type="text" class="gtr-input-name" placeholder="Full name" value="' + escapeHtml(data.name || '') + '" />' +
             '</label>' +
           '</div>' +
           '<div class="gtr-cell gtr-role">' +
             '<label class="gtr-label">Role on Game' +
-              '<input type="text" class="gtr-input-role" name="teamMemberRole" list="commonGameRoles" placeholder="e.g. Voice Actor, Composer" value="' + escapeHtml(data.role || '') + '" />' +
+              '<input type="text" class="gtr-input-role" list="commonGameRoles" placeholder="e.g. Voice Actor, Composer" value="' + escapeHtml(data.role || '') + '" />' +
             '</label>' +
           '</div>' +
           '<div class="gtr-cell gtr-char ' + (isVA ? 'is-va-active' : '') + '">' +
             '<label class="gtr-label">' +
               '<span class="gtr-char-label">Character Voiced ' + (isVA ? '<span class="va-badge">🎙️ Voice Actor</span>' : '<span class="hint">(Voice Actor)</span>') + '</span>' +
-              '<input type="text" class="gtr-input-char" name="teamMemberCharacter" placeholder="e.g. Diego (character name)" value="' + escapeHtml(data.character || '') + '" />' +
+              '<input type="text" class="gtr-input-char" placeholder="e.g. Diego (character name)" value="' + escapeHtml(data.character || '') + '" />' +
             '</label>' +
           '</div>' +
           '<div class="gtr-cell gtr-action">' +
-            '<input type="hidden" class="gtr-input-id" name="teamMemberId" value="' + escapeHtml(matchedId || '') + '" />' +
+            '<input type="hidden" class="gtr-input-id" value="' + escapeHtml(matchedId || '') + '" />' +
             '<button type="button" class="btn btn-danger btn-sm gtr-btn-remove" title="Remove member">&times;</button>' +
           '</div>' +
         '</div>';
@@ -1671,10 +1671,10 @@
           '<div class="gdl-card-body">' +
             '<div class="form-grid">' +
               '<label>Release / Build Title' +
-                '<input type="text" class="gdl-input-title" placeholder="e.g. Home Prototype v0.1" value="' + escapeAttr(data.title || '') + '" required />' +
+                '<input type="text" class="gdl-input-title" placeholder="e.g. Home Prototype v0.1" value="' + escapeAttr(data.title || '') + '" />' +
               '</label>' +
               '<label>Google Drive Share Link (or Direct URL)' +
-                '<input type="url" class="gdl-input-url" placeholder="https://drive.google.com/file/d/.../view" value="' + escapeAttr(data.url || '') + '" required />' +
+                '<input type="text" class="gdl-input-url" placeholder="https://drive.google.com/file/d/.../view" value="' + escapeAttr(data.url || '') + '" />' +
               '</label>' +
             '</div>' +
             '<div class="form-grid-3">' +
@@ -1739,6 +1739,13 @@
           var fileSize = ((r.querySelector('.gdl-input-size') || {}).value || '').trim();
           var description = ((r.querySelector('.gdl-input-desc') || {}).value || '').trim();
 
+          if (url && !/^https?:\/\//i.test(url)) {
+            url = 'https://' + url;
+          }
+          if (!title && url) {
+            var typeLabel = (typeConfigs[type] && typeConfigs[type].label) || 'Build';
+            title = typeLabel;
+          }
           if (title || url) {
             list.push({
               id: id,
@@ -1772,6 +1779,10 @@
       if (gameForm) {
         gameForm.addEventListener('submit', syncData);
       }
+      var saveBtns = document.querySelectorAll('button[form="gameForm"], button[type="submit"]');
+      saveBtns.forEach(function (btn) {
+        btn.addEventListener('click', syncData);
+      });
     })();
 </script>
 <script src="/js/admin.js"></script>
