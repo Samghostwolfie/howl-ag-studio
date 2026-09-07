@@ -924,6 +924,7 @@
 
     <!-- Modal Footer Actions -->
     <div class="dl-modal-footer">
+      <button type="button" class="btn btn-acid btn-sm" id="dlRetryBtn" style="display:none;">⚡ Resume Download</button>
       <button type="button" class="btn btn-ghost btn-sm" id="dlCancelBtn">Cancel Download</button>
       <button type="button" class="btn btn-acid btn-sm" id="dlDoneBtn" style="display:none;">Download Complete &check;</button>
     </div>
@@ -954,11 +955,12 @@
     });
   })();
 
-  // Real-Time Downloader Controller with Folder Selection & Progress HUD
+  // Real-Time Downloader Controller with Folder Selection, Progress HUD & Smart Auto-Resume
   (function () {
     var modal = document.getElementById('gameDownloadModal');
     var closeBtn = document.getElementById('dlModalCloseBtn');
     var cancelBtn = document.getElementById('dlCancelBtn');
+    var retryBtn = document.getElementById('dlRetryBtn');
     var doneBtn = document.getElementById('dlDoneBtn');
 
     var typeTag = document.getElementById('dlModalTypeTag');
@@ -986,6 +988,18 @@
 
     var activeAbortController = null;
     var activeWritableStream = null;
+    var activeFileHandle = null;
+    var activeChunks = [];
+    var loadedBytes = 0;
+    var totalBytes = 0;
+    var currentInfo = null;
+    var suggestedName = '';
+    var currentGameSlug = '';
+    var currentDownloadId = '';
+    var isStreaming = false;
+    var autoRetryTimer = null;
+    var autoRetrySeconds = 5;
+    var onlineHandlerAttached = false;
 
     function addLog(msg, type) {
       if (!consoleLog) return;
@@ -996,7 +1010,19 @@
       consoleLog.scrollTop = consoleLog.scrollHeight;
     }
 
+    function clearAutoRetry() {
+      if (autoRetryTimer) {
+        clearInterval(autoRetryTimer);
+        autoRetryTimer = null;
+      }
+      if (onlineHandlerAttached) {
+        window.removeEventListener('online', handleAutoOnline);
+        onlineHandlerAttached = false;
+      }
+    }
+
     function resetModal() {
+      clearAutoRetry();
       if (gaugeCircle) gaugeCircle.style.strokeDashoffset = GAUGE_CIRCUMFERENCE;
       if (gaugePercent) gaugePercent.textContent = '0%';
       if (gaugeStatus) {
@@ -1013,8 +1039,15 @@
         cancelBtn.disabled = false;
         cancelBtn.textContent = 'Cancel Download';
       }
+      if (retryBtn) retryBtn.style.display = 'none';
       if (doneBtn) doneBtn.style.display = 'none';
       if (closeBtn) closeBtn.style.display = '';
+      loadedBytes = 0;
+      totalBytes = 0;
+      activeChunks = [];
+      activeWritableStream = null;
+      activeFileHandle = null;
+      currentInfo = null;
     }
 
     function openModal() {
@@ -1024,6 +1057,7 @@
     }
 
     function closeModal() {
+      clearAutoRetry();
       if (activeAbortController) {
         activeAbortController.abort();
         activeAbortController = null;
@@ -1032,6 +1066,7 @@
         try { activeWritableStream.abort(); } catch(e){}
         activeWritableStream = null;
       }
+      isStreaming = false;
       modal.style.display = 'none';
       modal.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
@@ -1045,6 +1080,11 @@
       }
     });
     if (doneBtn) doneBtn.addEventListener('click', closeModal);
+    if (retryBtn) retryBtn.addEventListener('click', function () {
+      clearAutoRetry();
+      addLog('[USER ACTION] Manual resume triggered. Re-establishing stream...', 'info');
+      runStream(true);
+    });
 
     // Format seconds to mm:ss
     function formatTime(sec) {
@@ -1068,95 +1108,120 @@
       return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
-    async function startDownload(btn) {
-      var gameSlug = btn.getAttribute('data-game-slug');
-      var downloadId = btn.getAttribute('data-download-id');
-      var title = btn.getAttribute('data-download-title');
-      var typeName = btn.getAttribute('data-download-type');
+    function handleAutoOnline() {
+      addLog('[ONLINE] Internet connection restored! Auto-resuming download...', 'success');
+      clearAutoRetry();
+      runStream(true);
+    }
 
-      resetModal();
-      typeTag.textContent = (typeName || 'BUILD').toUpperCase();
-      modalTitle.textContent = title || 'Game Build';
-      destPath.textContent = 'Contacting server for package info...';
-
-      openModal();
-      addLog('[HANDSHAKE] Querying package metadata for: ' + title);
-
-      var info;
-      try {
-        var infoRes = await fetch('/api/games/' + gameSlug + '/downloads/' + downloadId + '/info');
-        if (!infoRes.ok) throw new Error('Package information unavailable');
-        info = await infoRes.json();
-      } catch (err) {
-        addLog('[ERROR] Failed to fetch package details: ' + err.message, 'err');
-        destPath.textContent = 'Error connecting to package.';
-        if (gaugeStatus) gaugeStatus.textContent = 'FAILED';
-        return;
+    function scheduleAutoRetry() {
+      clearAutoRetry();
+      if (!onlineHandlerAttached) {
+        window.addEventListener('online', handleAutoOnline);
+        onlineHandlerAttached = true;
+      }
+      autoRetrySeconds = 5;
+      if (retryBtn) {
+        retryBtn.style.display = '';
+        retryBtn.textContent = '⚡ Resume Download (' + autoRetrySeconds + 's)';
+      }
+      if (gaugeStatus) {
+        gaugeStatus.textContent = 'RECONNECTING';
+        gaugeStatus.className = 'dl-gauge-status is-reconnecting';
       }
 
-      var suggestedName = info.filename || (gameSlug + '-' + info.type + '.zip');
-      var fileHandle = null;
-      var writableStream = null;
-
-      // STEP 1: Prompt user for destination folder / filename using File System Access API
-      if (window.showSaveFilePicker) {
-        destPath.textContent = 'Prompting destination folder on your device...';
-        addLog('[PROMPT] Opening native Save As dialog...');
-        try {
-          fileHandle = await window.showSaveFilePicker({
-            suggestedName: suggestedName,
-            types: [{
-              description: 'Game Package or Installer',
-              accept: {
-                'application/octet-stream': ['.zip', '.exe', '.7z', '.rar', '.iso', '.dmg', '.tar.gz', '.pkg']
-              }
-            }]
-          });
-          writableStream = await fileHandle.createWritable();
-          activeWritableStream = writableStream;
-          destPath.textContent = fileHandle.name;
-          addLog('[DESTINATION] Destination approved: ' + fileHandle.name, 'success');
-        } catch (err) {
-          if (err.name === 'AbortError') {
-            addLog('[INFO] Save dialog closed without selection.', 'warn');
-            closeModal();
-            return;
-          }
-          console.warn('showSaveFilePicker fallback:', err);
-          destPath.textContent = suggestedName + ' (Browser Default Downloads)';
-          addLog('[NOTICE] Direct folder access bypassed. Saving via browser download.', 'info');
+      autoRetryTimer = setInterval(async function () {
+        autoRetrySeconds--;
+        if (retryBtn) {
+          retryBtn.textContent = '⚡ Resume Download (' + autoRetrySeconds + 's)';
         }
-      } else {
-        destPath.textContent = suggestedName + ' (Browser Default Downloads)';
-        addLog('[NOTICE] Browser does not support direct folder picker. Streaming to default downloads folder.', 'info');
-      }
+        if (autoRetrySeconds <= 0) {
+          clearAutoRetry();
+          if (retryBtn) retryBtn.textContent = 'Connecting...';
+          addLog('[AUTO-RETRY] Testing connection to resume stream...', 'info');
+          try {
+            var ping = await fetch('/api/games/' + currentGameSlug + '/downloads/' + currentDownloadId + '/info?ping=' + Date.now(), { cache: 'no-store' });
+            if (ping.ok) {
+              addLog('[RECONNECTED] Connection confirmed! Resuming transfer...', 'success');
+              runStream(true);
+              return;
+            }
+          } catch(e){}
+          // Still offline, reschedule
+          addLog('[OFFLINE] Waiting for connection... retrying in 5s (or click Resume).', 'warn');
+          scheduleAutoRetry();
+        }
+      }, 1000);
+    }
 
-      // STEP 2: Initiate Real-Time Stream
+    async function runStream(isResume) {
+      clearAutoRetry();
+      if (retryBtn) retryBtn.style.display = 'none';
+
       var controller = new AbortController();
       activeAbortController = controller;
+      isStreaming = true;
 
-      gaugeStatus.textContent = 'STREAMING';
-      addLog('[STREAM] Starting real-time data stream from Google Drive...');
+      if (gaugeStatus) {
+        gaugeStatus.textContent = isResume ? 'RESUMING...' : 'STREAMING';
+        gaugeStatus.className = 'dl-gauge-status';
+      }
 
-      var streamUrl = info.streamUrl;
-      var totalBytes = info.size || 0;
-      var loadedBytes = 0;
-      var chunks = [];
+      var streamUrl = currentInfo.streamUrl;
+      var reqUrl = streamUrl + (loadedBytes > 0 ? '?offset=' + loadedBytes : '');
+      var headers = loadedBytes > 0 ? { 'Range': 'bytes=' + loadedBytes + '-' } : {};
+
+      if (isResume) {
+        addLog('[RESUME] Reconnecting stream at ' + formatBytes(loadedBytes) + '...', 'info');
+      } else {
+        addLog('[STREAM] Starting real-time data stream from Google Drive...');
+      }
 
       try {
-        var response = await fetch(streamUrl, { signal: controller.signal });
-        if (!response.ok) throw new Error('Stream response returned status ' + response.status);
+        var response = await fetch(reqUrl, {
+          headers: headers,
+          signal: controller.signal
+        });
 
-        var headerLen = Number(response.headers.get('content-length'));
-        if (headerLen && headerLen > 0) totalBytes = headerLen;
+        if (!response.ok && response.status !== 206) {
+          throw new Error('Stream response returned status ' + response.status);
+        }
+
+        var cr = response.headers.get('content-range');
+        if (cr) {
+          var crParts = cr.split('/');
+          if (crParts[1]) {
+            var fullLen = parseInt(crParts[1], 10);
+            if (!isNaN(fullLen) && fullLen > 0) totalBytes = fullLen;
+          }
+        } else if (!totalBytes || totalBytes <= 0) {
+          var headerLen = Number(response.headers.get('content-length'));
+          if (headerLen && headerLen > 0) totalBytes = headerLen;
+        }
+
+        // If upstream did not support range and returned full 200 from start
+        if (isResume && response.status === 200 && !cr) {
+          addLog('[NOTICE] Server returned full stream. Resetting buffer...', 'warn');
+          loadedBytes = 0;
+          activeChunks = [];
+          if (activeWritableStream && typeof activeWritableStream.seek === 'function') {
+            try { await activeWritableStream.seek(0); } catch(e){}
+          }
+        }
 
         var reader = response.body.getReader();
         var startTime = performance.now();
         var lastTime = startTime;
-        var lastLoaded = 0;
+        var lastLoaded = loadedBytes;
         var currentSpeed = 0;
 
-        addLog('[STREAM] Payload connection established. Total: ' + (totalBytes > 0 ? formatBytes(totalBytes) : 'Dynamic stream'));
+        if (isResume) {
+          addLog('[STREAM RESTORED] Continuing transfer from ' + formatBytes(loadedBytes) + ' (Total: ' + (totalBytes > 0 ? formatBytes(totalBytes) : '--') + ')', 'success');
+        } else {
+          addLog('[STREAM] Payload connection established. Total: ' + (totalBytes > 0 ? formatBytes(totalBytes) : 'Dynamic stream'));
+        }
+
+        if (gaugeStatus) gaugeStatus.textContent = 'STREAMING';
 
         while (true) {
           var res = await reader.read();
@@ -1165,10 +1230,10 @@
           var value = res.value;
           loadedBytes += value.length;
 
-          if (writableStream) {
-            await writableStream.write(value);
+          if (activeWritableStream) {
+            await activeWritableStream.write(value);
           } else {
-            chunks.push(value);
+            activeChunks.push(value);
           }
 
           var now = performance.now();
@@ -1200,11 +1265,11 @@
 
         // STEP 3: Finalize and Save
         addLog('[FINALIZING] Flushing buffer to storage...', 'info');
-        if (writableStream) {
-          await writableStream.close();
+        if (activeWritableStream) {
+          await activeWritableStream.close();
           activeWritableStream = null;
         } else {
-          var blob = new Blob(chunks, { type: 'application/octet-stream' });
+          var blob = new Blob(activeChunks, { type: 'application/octet-stream' });
           var blobUrl = URL.createObjectURL(blob);
           var a = document.createElement('a');
           a.href = blobUrl;
@@ -1231,21 +1296,90 @@
         addLog('[READY] Package is ready in your folder. Enjoy the game!', 'success');
 
         if (cancelBtn) cancelBtn.style.display = 'none';
+        if (retryBtn) retryBtn.style.display = 'none';
         if (doneBtn) {
           doneBtn.style.display = '';
-          doneBtn.textContent = 'Done &amp; Ready to Play';
+          doneBtn.textContent = 'Done & Ready to Play';
         }
+        isStreaming = false;
       } catch (err) {
         if (err.name === 'AbortError') {
-          addLog('[ABORTED] Download cancelled.', 'warn');
+          addLog('[ABORTED] Stream connection closed.', 'warn');
+          isStreaming = false;
         } else {
           console.error('[download-error]', err);
-          addLog('[ERROR] ' + err.message, 'err');
-          if (gaugeStatus) gaugeStatus.textContent = 'ERROR';
+          var pctText = totalBytes > 0 ? ' (' + Math.round((loadedBytes / totalBytes) * 100) + '%)' : '';
+          addLog('[INTERRUPTED] Network error at ' + formatBytes(loadedBytes) + pctText + ': ' + (err.message || 'connection lost'), 'err');
+          addLog('[AUTO-RESUME] Monitoring connection... auto-reconnecting in 5s (or click Resume).', 'warn');
+          scheduleAutoRetry();
         }
       } finally {
         activeAbortController = null;
       }
+    }
+
+    async function startDownload(btn) {
+      currentGameSlug = btn.getAttribute('data-game-slug');
+      currentDownloadId = btn.getAttribute('data-download-id');
+      var title = btn.getAttribute('data-download-title');
+      var typeName = btn.getAttribute('data-download-type');
+
+      resetModal();
+      typeTag.textContent = (typeName || 'BUILD').toUpperCase();
+      modalTitle.textContent = title || 'Game Build';
+      destPath.textContent = 'Contacting server for package info...';
+
+      openModal();
+      addLog('[HANDSHAKE] Querying package metadata for: ' + title);
+
+      try {
+        var infoRes = await fetch('/api/games/' + currentGameSlug + '/downloads/' + currentDownloadId + '/info');
+        if (!infoRes.ok) throw new Error('Package information unavailable');
+        currentInfo = await infoRes.json();
+      } catch (err) {
+        addLog('[ERROR] Failed to fetch package details: ' + err.message, 'err');
+        destPath.textContent = 'Error connecting to package.';
+        if (gaugeStatus) gaugeStatus.textContent = 'FAILED';
+        return;
+      }
+
+      suggestedName = currentInfo.filename || (currentGameSlug + '-' + currentInfo.type + '.zip');
+      totalBytes = currentInfo.size || 0;
+
+      // STEP 1: Prompt user for destination folder / filename using File System Access API
+      if (window.showSaveFilePicker) {
+        destPath.textContent = 'Prompting destination folder on your device...';
+        addLog('[PROMPT] Opening native Save As dialog...');
+        try {
+          activeFileHandle = await window.showSaveFilePicker({
+            suggestedName: suggestedName,
+            types: [{
+              description: 'Game Package or Installer',
+              accept: {
+                'application/octet-stream': ['.zip', '.exe', '.7z', '.rar', '.iso', '.dmg', '.tar.gz', '.pkg']
+              }
+            }]
+          });
+          activeWritableStream = await activeFileHandle.createWritable();
+          destPath.textContent = activeFileHandle.name;
+          addLog('[DESTINATION] Destination approved: ' + activeFileHandle.name, 'success');
+        } catch (err) {
+          if (err.name === 'AbortError') {
+            addLog('[INFO] Save dialog closed without selection.', 'warn');
+            closeModal();
+            return;
+          }
+          console.warn('showSaveFilePicker fallback:', err);
+          destPath.textContent = suggestedName + ' (Browser Default Downloads)';
+          addLog('[NOTICE] Direct folder access bypassed. Saving via browser download.', 'info');
+        }
+      } else {
+        destPath.textContent = suggestedName + ' (Browser Default Downloads)';
+        addLog('[NOTICE] Browser does not support direct folder picker. Streaming to default downloads folder.', 'info');
+      }
+
+      // STEP 2: Initiate Real-Time Stream
+      runStream(false);
     }
 
     // Attach to all download buttons

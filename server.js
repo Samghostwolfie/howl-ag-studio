@@ -1107,22 +1107,34 @@ app.get('/api/games/:slug/downloads/:id/info', async (req, res) => {
     let contentLength = 0;
 
     let targetUrl = download.url;
-    if (download.driveId) {
-      targetUrl = `https://drive.usercontent.google.com/download?id=${download.driveId}&export=download&confirm=t`;
+    const driveId = download.driveId || extractDriveId(download.url);
+    if (driveId) {
+      targetUrl = `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`;
     }
 
     if (targetUrl) {
       try {
-        const headRes = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
-        const disp = headRes.headers.get('content-disposition');
+        // Fast 1-byte probe to extract exact remote filename and total content-length from Google Drive / CDN
+        const probeRes = await fetch(targetUrl, {
+          method: 'GET',
+          headers: { 'Range': 'bytes=0-0' },
+          redirect: 'follow',
+        });
+        const disp = probeRes.headers.get('content-disposition');
         if (disp) {
           const match = disp.match(/filename\*?=(?:UTF-8'')?"?([^";\n]+)"?/i);
           if (match && match[1]) {
             filename = decodeURIComponent(match[1].trim());
           }
         }
-        const len = headRes.headers.get('content-length');
-        if (len) contentLength = parseInt(len, 10) || 0;
+        const cr = probeRes.headers.get('content-range');
+        if (cr) {
+          const parts = cr.split('/');
+          if (parts[1]) contentLength = parseInt(parts[1], 10) || 0;
+        } else {
+          const len = probeRes.headers.get('content-length');
+          if (len) contentLength = parseInt(len, 10) || 0;
+        }
       } catch (err) {
         console.warn('[download-info] Header probe error:', err.message);
       }
@@ -1161,16 +1173,32 @@ app.get('/api/games/:slug/downloads/:id/stream', async (req, res) => {
     if (!download) return res.status(404).send('Download not found');
 
     let targetUrl = download.url;
-    if (download.driveId) {
-      targetUrl = `https://drive.usercontent.google.com/download?id=${download.driveId}&export=download&confirm=t`;
+    const driveId = download.driveId || extractDriveId(download.url);
+    if (driveId) {
+      targetUrl = `https://drive.usercontent.google.com/download?id=${driveId}&export=download&confirm=t`;
     }
 
     if (!targetUrl) return res.status(400).send('No download URL specified for this build');
 
     const controller = new AbortController();
-    req.on('close', () => controller.abort());
+    req.on('close', () => { if (!res.writableEnded) { try { controller.abort(); } catch(e){} } });
+
+    // Resumable range / offset support for uninterrupted downloads
+    let rangeHeader = req.headers['range'];
+    if (!rangeHeader && req.query.offset) {
+      const offset = parseInt(req.query.offset, 10);
+      if (!isNaN(offset) && offset >= 0) {
+        rangeHeader = `bytes=${offset}-`;
+      }
+    }
+
+    const fetchHeaders = {};
+    if (rangeHeader) {
+      fetchHeaders['Range'] = rangeHeader;
+    }
 
     const upstream = await fetch(targetUrl, {
+      headers: fetchHeaders,
       redirect: 'follow',
       signal: controller.signal,
     });
@@ -1181,6 +1209,7 @@ app.get('/api/games/:slug/downloads/:id/stream', async (req, res) => {
 
     const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
     const contentLength = upstream.headers.get('content-length');
+    const contentRange = upstream.headers.get('content-range');
     let contentDisp = upstream.headers.get('content-disposition');
 
     if (!contentDisp) {
@@ -1188,14 +1217,26 @@ app.get('/api/games/:slug/downloads/:id/stream', async (req, res) => {
       contentDisp = `attachment; filename="${fallbackName}"`;
     }
 
+    if (upstream.status === 206 || contentRange) {
+      res.status(206);
+      if (contentRange) res.setHeader('Content-Range', contentRange);
+    }
+
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Content-Type', contentType);
     if (contentLength) res.setHeader('Content-Length', contentLength);
     res.setHeader('Content-Disposition', contentDisp);
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges');
 
     const { Readable } = require('stream');
     const nodeStream = Readable.fromWeb(upstream.body);
+    nodeStream.on('error', (streamErr) => {
+      if (streamErr.name !== 'AbortError' && streamErr.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+        console.warn('[download-stream] Pipe stream error:', streamErr.message);
+      }
+    });
     nodeStream.pipe(res);
   } catch (err) {
     if (err.name === 'AbortError') return;

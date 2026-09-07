@@ -2255,6 +2255,34 @@ strong { color: var(--white); }
 .dl-gauge-status.is-done {
   color: #10b981;
 }
+.dl-gauge-status.is-reconnecting {
+  color: #fbbf24;
+  animation: dl-pulse-reconnect 1.5s infinite ease-in-out;
+}
+.dl-gauge-status.is-err {
+  color: #f87171;
+}
+
+@keyframes dl-pulse-reconnect {
+  0%, 100% { opacity: 1; text-shadow: 0 0 10px rgba(251, 191, 36, 0.6); }
+  50% { opacity: 0.5; text-shadow: none; }
+}
+
+#dlRetryBtn {
+  background: #fbbf24;
+  color: #0b0f19;
+  font-weight: 700;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.4);
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+}
+#dlRetryBtn:hover {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 0 22px rgba(251, 191, 36, 0.75);
+  transform: translateY(-1px);
+}
 
 /* Neon Striped Progress Bar */
 .dl-progress-track {
