@@ -1761,7 +1761,7 @@ strong { color: var(--white); }
 
 
 /* =====================================================================
-   GAME DOWNLOADS & DLCS: ADMIN BUILDER
+   GAME DOWNLOADS & DLCS: ADMIN BUILDER (CLEAN & COMPACT STUDIO STYLE)
    ===================================================================== */
 .game-downloads-list {
   display: flex;
@@ -1770,137 +1770,163 @@ strong { color: var(--white); }
   margin-top: 14px;
 }
 
-.gdl-row {
+.gdl-card {
   background: var(--panel, #12161b);
-  border: 1px solid var(--line, #222933);
-  border-radius: 6px;
-  padding: 16px;
+  box-shadow: inset 0 0 0 1px var(--line, #222933);
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-  transition: border-color 0.2s ease;
+  position: relative;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
-.gdl-row:hover {
-  border-color: rgba(180, 242, 48, 0.35);
+.gdl-card:hover {
+  box-shadow: inset 0 0 0 1px rgba(180, 242, 48, 0.4);
 }
 
-.gdl-top-bar {
+.gdl-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line, #222933);
 }
 
-.gdl-type-group {
+.gdl-type-selector {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex: 1;
+}
+.gdl-label-tag {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--grey-dim, #8f9ba8);
+  white-space: nowrap;
+}
+
+.gdl-type-pills {
+  display: flex;
+  gap: 5px;
   flex-wrap: wrap;
 }
-.gdl-type-title {
-  font-size: 0.72rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--grey-dim, #8f9ba8);
-}
-.gdl-type-tabs {
-  display: flex;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--line, #222933);
-  border-radius: 4px;
-  padding: 3px;
-  gap: 3px;
-}
-.gdl-type-tab {
-  background: transparent;
+
+.gdl-type-pill {
+  background: var(--black-2, #0a0d12);
+  box-shadow: inset 0 0 0 1px var(--line, #222933);
+  color: var(--grey, #c3cdd7);
   border: 0;
-  color: var(--grey-dim, #8f9ba8);
-  font-size: 0.78rem;
+  padding: 4px 10px;
+  font-size: 0.68rem;
   font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 3px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
+  clip-path: var(--notch-sm);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
+  gap: 5px;
+  transition: all 0.18s ease;
+  white-space: nowrap;
 }
-.gdl-type-tab:hover {
+.gdl-type-pill:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.05);
-}
-.gdl-type-tab.is-active {
-  color: #06080a;
-  background: #fff;
-}
-.gdl-type-tab.is-active.gdl-tab-prototype {
-  background: #10b981;
-  color: #021a10;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
-}
-.gdl-type-tab.is-active.gdl-tab-demo {
-  background: #38bdf8;
-  color: #032030;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.45);
-}
-.gdl-type-tab.is-active.gdl-tab-full {
-  background: #c084fc;
-  color: #1e0933;
-  box-shadow: 0 0 10px rgba(192, 132, 252, 0.45);
-}
-.gdl-type-tab.is-active.gdl-tab-dlc {
-  background: #fbbf24;
-  color: #2b1800;
-  box-shadow: 0 0 10px rgba(251, 191, 36, 0.45);
+  box-shadow: inset 0 0 0 1px var(--grey-dim, #8f9ba8);
 }
 
-.gdl-fields-grid {
-  display: grid;
-  grid-template-columns: 1.6fr 2fr 1fr 1fr 0.9fr 2fr;
+.gdl-type-pill.is-active.pill-prototype {
+  box-shadow: inset 0 0 0 1px #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+.gdl-type-pill.is-active.pill-demo {
+  box-shadow: inset 0 0 0 1px #38bdf8;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+.gdl-type-pill.is-active.pill-full {
+  box-shadow: inset 0 0 0 1px #c084fc;
+  color: #c084fc;
+  background: rgba(192, 132, 252, 0.1);
+}
+.gdl-type-pill.is-active.pill-dlc {
+  box-shadow: inset 0 0 0 1px #fbbf24;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.gdl-btn-remove {
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f87171 !important;
+  background: transparent !important;
+  border: 1px solid rgba(248, 113, 113, 0.3) !important;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+.gdl-btn-remove:hover {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: #ef4444 !important;
+  color: #fff !important;
+}
+
+.gdl-card-body {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
-@media (max-width: 1100px) {
-  .gdl-fields-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+.gdl-card-body .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
-@media (max-width: 650px) {
-  .gdl-fields-grid {
+.gdl-card-body .form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 600px) {
+  .gdl-card-body .form-grid,
+  .gdl-card-body .form-grid-3 {
     grid-template-columns: 1fr;
   }
 }
 
-.gdl-field-label {
+.gdl-card-body label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 0.72rem;
+  gap: 6px;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--grey-dim, #8f9ba8);
 }
-.gdl-field-label input,
-.gdl-field-label select {
-  padding: 8px 10px;
+.gdl-card-body input,
+.gdl-card-body select {
+  width: 100%;
   background: var(--black-2, #0a0d12);
-  color: var(--white, #f4f6f8);
-  border: 1px solid var(--line, #222933);
-  border-radius: 3px;
-  font-size: 0.85rem;
+  color: var(--white, #fff);
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--line, #222933);
+  padding: 10px 14px;
   font-family: var(--f-body, sans-serif);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 0.88rem;
+  clip-path: var(--notch-sm);
+  transition: box-shadow 0.18s ease;
+  box-sizing: border-box;
 }
-.gdl-field-label input:focus,
-.gdl-field-label select:focus {
+.gdl-card-body input:focus,
+.gdl-card-body select:focus {
   outline: 0;
-  border-color: var(--acid, #b4f230);
-  box-shadow: 0 0 0 1px var(--acid, #b4f230);
+  box-shadow: inset 0 0 0 1px var(--acid, #b4f230);
 }
 
 /* =====================================================================

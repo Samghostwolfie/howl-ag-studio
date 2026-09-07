@@ -1597,7 +1597,7 @@
     }
   })();
 
-    // Game Downloads, Builds & DLCs builder
+        // Game Downloads, Builds & DLCs builder
     (function () {
       var container = document.getElementById('gameDownloadsList');
       var addBtn = document.getElementById('addDownloadBtn');
@@ -1643,49 +1643,45 @@
         };
 
         var row = document.createElement('div');
-        row.className = 'gdl-row';
+        row.className = 'gdl-card';
         row.setAttribute('data-id', data.id);
 
         var currentType = (data.type || 'demo').toLowerCase();
         if (!typeConfigs[currentType]) currentType = 'demo';
 
-        var typeTabsHtml = Object.keys(typeConfigs).map(function (key) {
+        var typePillsHtml = Object.keys(typeConfigs).map(function (key) {
           var cfg = typeConfigs[key];
           var isActive = key === currentType;
           return (
-            '<button type="button" class="gdl-type-tab ' + (isActive ? 'is-active gdl-tab-' + key : '') + '" data-type="' + key + '">' +
-              '<span class="gdl-tab-icon">' + cfg.icon + '</span> ' + cfg.label +
+            '<button type="button" class="gdl-type-pill pill-' + key + (isActive ? ' is-active' : '') + '" data-type="' + key + '">' +
+              '<span class="pill-icon">' + cfg.icon + '</span> ' + cfg.label +
             '</button>'
           );
         }).join('');
 
         row.innerHTML =
-          '<div class="gdl-top-bar">' +
-            '<div class="gdl-type-group">' +
-              '<span class="gdl-type-title">Build Type:</span>' +
-              '<div class="gdl-type-tabs">' + typeTabsHtml + '</div>' +
+          '<div class="gdl-card-head">' +
+            '<div class="gdl-type-selector">' +
+              '<span class="gdl-label-tag">BUILD TYPE:</span>' +
+              '<div class="gdl-type-pills">' + typePillsHtml + '</div>' +
               '<input type="hidden" class="gdl-input-type" value="' + escapeAttr(currentType) + '" />' +
             '</div>' +
-            '<button type="button" class="btn btn-danger btn-sm gdl-btn-remove" title="Remove download">&times; Remove</button>' +
+            '<button type="button" class="btn btn-ghost btn-sm gdl-btn-remove" title="Remove download">&times; Remove</button>' +
           '</div>' +
-          '<div class="gdl-fields-grid">' +
-            '<div class="gdl-cell gdl-cell-title">' +
-              '<label class="gdl-field-label">Release / Build Title' +
-                '<input type="text" class="gdl-input-title" placeholder="e.g. Home Prototype v0.1 (Unreal Engine 5)" value="' + escapeAttr(data.title || '') + '" required />' +
+          '<div class="gdl-card-body">' +
+            '<div class="form-grid">' +
+              '<label>Release / Build Title' +
+                '<input type="text" class="gdl-input-title" placeholder="e.g. Home Prototype v0.1" value="' + escapeAttr(data.title || '') + '" required />' +
+              '</label>' +
+              '<label>Google Drive Share Link (or Direct URL)' +
+                '<input type="url" class="gdl-input-url" placeholder="https://drive.google.com/file/d/.../view" value="' + escapeAttr(data.url || '') + '" required />' +
               '</label>' +
             '</div>' +
-            '<div class="gdl-cell gdl-cell-url">' +
-              '<label class="gdl-field-label">Google Drive Share Link (or Direct URL)' +
-                '<input type="url" class="gdl-input-url" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" value="' + escapeAttr(data.url || '') + '" required />' +
+            '<div class="form-grid-3">' +
+              '<label>Version / Build' +
+                '<input type="text" class="gdl-input-version" placeholder="e.g. v1.0-alpha" value="' + escapeAttr(data.version || '') + '" />' +
               '</label>' +
-            '</div>' +
-            '<div class="gdl-cell gdl-cell-version">' +
-              '<label class="gdl-field-label">Version / Build' +
-                '<input type="text" class="gdl-input-version" placeholder="e.g. v0.1.2 or Alpha 2026.09" value="' + escapeAttr(data.version || '') + '" />' +
-              '</label>' +
-            '</div>' +
-            '<div class="gdl-cell gdl-cell-platform">' +
-              '<label class="gdl-field-label">Platform' +
+              '<label>Platform' +
                 '<select class="gdl-select-platform">' +
                   '<option value="windows"' + (data.platform === 'windows' ? ' selected' : '') + '>Windows (PC)</option>' +
                   '<option value="mac"' + (data.platform === 'mac' ? ' selected' : '') + '>macOS</option>' +
@@ -1693,30 +1689,26 @@
                   '<option value="all"' + (data.platform === 'all' ? ' selected' : '') + '>All Platforms</option>' +
                 '</select>' +
               '</label>' +
-            '</div>' +
-            '<div class="gdl-cell gdl-cell-size">' +
-              '<label class="gdl-field-label">File Size (estimate)' +
-                '<input type="text" class="gdl-input-size" placeholder="e.g. 1.8 GB" value="' + escapeAttr(data.fileSize || '') + '" />' +
+              '<label>File Size (Estimate)' +
+                '<input type="text" class="gdl-input-size" placeholder="e.g. 1.6 GB" value="' + escapeAttr(data.fileSize || '') + '" />' +
               '</label>' +
             '</div>' +
-            '<div class="gdl-cell gdl-cell-desc">' +
-              '<label class="gdl-field-label">Release Notes / Description' +
-                '<input type="text" class="gdl-input-desc" placeholder="e.g. Early access prototype with level 1 and combat sandbox." value="' + escapeAttr(data.description || '') + '" />' +
-              '</label>' +
-            '</div>' +
+            '<label>Release Notes / Description' +
+              '<input type="text" class="gdl-input-desc" placeholder="e.g. First Prototype look. Contains vertical slice and combat testing." value="' + escapeAttr(data.description || '') + '" />' +
+            '</label>' +
           '</div>';
 
         var typeInput = row.querySelector('.gdl-input-type');
-        var typeTabs = row.querySelectorAll('.gdl-type-tab');
+        var typePills = row.querySelectorAll('.gdl-type-pill');
 
-        typeTabs.forEach(function (tab) {
-          tab.addEventListener('click', function () {
-            var selectedType = tab.getAttribute('data-type');
+        typePills.forEach(function (pill) {
+          pill.addEventListener('click', function () {
+            var selectedType = pill.getAttribute('data-type');
             typeInput.value = selectedType;
-            typeTabs.forEach(function (t) {
-              var k = t.getAttribute('data-type');
-              t.className = 'gdl-type-tab' + (k === selectedType ? ' is-active gdl-tab-' + k : '');
+            typePills.forEach(function (p) {
+              p.classList.remove('is-active');
             });
+            pill.classList.add('is-active');
             syncData();
           });
         });
@@ -1735,7 +1727,7 @@
       }
 
       function syncData() {
-        var rows = container.querySelectorAll('.gdl-row');
+        var rows = container.querySelectorAll('.gdl-card');
         var list = [];
         rows.forEach(function (r) {
           var id = r.getAttribute('data-id') || '';
@@ -1781,7 +1773,6 @@
         gameForm.addEventListener('submit', syncData);
       }
     })();
-
 </script>
 <script src="/js/admin.js"></script>
 </body>
