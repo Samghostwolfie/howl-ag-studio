@@ -2284,6 +2284,242 @@ strong { color: var(--white); }
   transform: translateY(-1px);
 }
 
+
+/* Public Community Feedback & Player Reviews Hub */
+.feedback-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 30px;
+  margin-bottom: 34px;
+  flex-wrap: wrap;
+}
+
+.fb-summary-capsule {
+  background: var(--black-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: var(--notch-sm);
+  padding: 18px 26px;
+  min-width: 220px;
+}
+
+.fb-score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+}
+
+.fb-big-score {
+  font-family: var(--f-display);
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--acid);
+  line-height: 1;
+}
+
+.fb-stars-display {
+  display: flex;
+  gap: 3px;
+  color: rgba(255, 255, 255, 0.15);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.fb-stars-display .star-icon.is-filled,
+.prc-stars .star-icon.is-filled {
+  color: #fbbf24;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+}
+
+.fb-count-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--grey-dim);
+  margin-top: 2px;
+}
+
+.feedback-feed-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feedback-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.fb-filter-pill {
+  background: var(--black-2);
+  border: 1px solid var(--line);
+  color: var(--grey);
+  font-size: 0.78rem;
+  font-family: var(--f-body);
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.fb-filter-pill:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--white);
+}
+
+.fb-filter-pill.is-active {
+  background: rgba(180, 242, 48, 0.12);
+  border-color: var(--acid);
+  color: var(--acid);
+  box-shadow: 0 0 10px rgba(180, 242, 48, 0.25);
+}
+
+.feedback-cards-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 640px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.feedback-cards-stream::-webkit-scrollbar {
+  width: 5px;
+}
+.feedback-cards-stream::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+.feedback-cards-stream::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+.feedback-cards-stream::-webkit-scrollbar-thumb:hover {
+  background: var(--acid);
+}
+
+.player-review-card {
+  background: var(--black-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: var(--notch-sm);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.player-review-card:hover {
+  box-shadow: inset 0 0 0 1px rgba(180, 242, 48, 0.4), 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.prc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.prc-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prc-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--acid);
+  flex-shrink: 0;
+}
+
+.prc-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--white);
+  line-height: 1.2;
+}
+
+.prc-date {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--grey-dim);
+  margin-top: 2px;
+}
+
+.prc-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topic-badge {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line);
+  color: #94a3b8;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.prc-stars {
+  display: flex;
+  gap: 2px;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.prc-body p {
+  color: #cbd5e1;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.feedback-empty-state {
+  background: var(--black-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  clip-path: var(--notch-sm);
+  padding: 46px 24px;
+  text-align: center;
+}
+
+.feedback-empty-state .empty-icon {
+  font-size: 2.4rem;
+  margin-bottom: 12px;
+}
+
+.feedback-empty-state h4 {
+  color: var(--white);
+  font-size: 1.15rem;
+  margin-bottom: 6px;
+}
+
+.feedback-empty-state p {
+  color: var(--grey);
+  font-size: 0.88rem;
+  max-width: 36ch;
+  margin: 0 auto;
+}
+
 /* Neon Striped Progress Bar */
 .dl-progress-track {
   width: 100%;

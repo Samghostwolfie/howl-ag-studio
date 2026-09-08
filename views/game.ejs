@@ -31,7 +31,7 @@
         <% if (media.length) { %>
           <% var first = media[0]; %>
           <% if (first.type === 'video' && first.mode === 'iframe') { %>
-            <iframe src="<%= first.src %>" title="<%= game.title %> video" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>
+            <iframe src="<%= first.src %>" title="<%= game.title %> video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
           <% } else if (first.type === 'video') { %>
             <video src="<%= first.src %>" controls preload="metadata" <%= first.poster ? 'poster=' + first.poster : '' %>></video>
           <% } else { %>
@@ -675,7 +675,7 @@
               <div class="voice-video">
                 <% if (v.video.mode === 'iframe') { %>
                   <iframe src="<%= v.video.src %>" title="<%= v.name %> on <%= game.title %>"
-                          allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 <% } else { %>
                   <video src="<%= v.video.src %>" controls preload="metadata"
                          <%= v.photo ? 'poster=' + resolveUploadUrl('team', v.photo) : '' %>></video>
@@ -755,90 +755,145 @@
 
 <% var fbTopics = (typeof feedbackTopics !== 'undefined' && feedbackTopics) ? feedbackTopics : []; %>
 <% var fbStats = (typeof feedbackStats !== 'undefined' && feedbackStats) ? feedbackStats : null; %>
+<% var fbList = (typeof feedbacks !== 'undefined' && feedbacks) ? feedbacks : []; %>
 
 <section class="section feedback-section" id="feedback">
   <div class="container">
-    <div class="feedback-wrap">
-      <div class="feedback-intro">
-        <p class="eyebrow">Tell us the truth</p>
-        <h2>Feedback on <%= game.title %></h2>
+    <div class="feedback-header-row">
+      <div>
+        <p class="eyebrow">COMMUNITY VOICE &amp; REVIEWS</p>
+        <h2>Player Reviews &amp; Feedback</h2>
         <p class="lead">
           <%= game.isReleased
-              ? 'Played it? We want to know what landed and what did not.'
-              : 'This game is still being made, which means your opinion can still change it. That is the point of asking now.' %>
-        </p>
-
-        <% if (fbStats && fbStats.total) { %>
-          <div class="feedback-stats">
-            <div>
-              <span class="fb-num"><%= fbStats.total %></span>
-              <span class="fb-label"><%= fbStats.total === 1 ? 'response' : 'responses' %></span>
-            </div>
-            <% if (fbStats.rated) { %>
-              <div>
-                <span class="fb-num"><%= fbStats.average %><span class="fb-of">/5</span></span>
-                <span class="fb-label">average from <%= fbStats.rated %></span>
-              </div>
-            <% } %>
-          </div>
-        <% } %>
-
-        <p class="muted small">
-          Feedback goes straight to the team — it is not published on the site,
-          so you can be blunt without it becoming a public review.
+              ? 'Real player reactions, reviews, and community feedback on ' + game.title + '.'
+              : 'Community impressions, gameplay feedback, and bug reports shaping ' + game.title + '.' %>
         </p>
       </div>
 
-      <form class="feedback-form" method="POST" action="/games/<%= game.slug %>/feedback">
-        <div class="fb-rating">
-          <span class="wl-label">How is it looking so far?</span>
-          <div class="fb-stars">
-            <% [5,4,3,2,1].forEach(function (n) { %>
-              <input type="radio" name="rating" id="fb<%= game.id %>-<%= n %>" value="<%= n %>" />
-              <label for="fb<%= game.id %>-<%= n %>" title="<%= n %> out of 5">
-                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
-                </svg>
-              </label>
-            <% }) %>
+      <% if (fbStats && fbStats.total) { %>
+        <div class="fb-summary-capsule">
+          <div class="fb-score-block">
+            <span class="fb-big-score"><%= fbStats.average || '5.0' %></span>
+            <div class="fb-stars-display">
+              <% var avgRounded = Math.round(Number(fbStats.average) || 5); %>
+              <% for (var s = 1; s <= 5; s++) { %>
+                <span class="star-icon <%= s <= avgRounded ? 'is-filled' : '' %>">&#9733;</span>
+              <% } %>
+            </div>
+            <span class="fb-count-label"><%= fbStats.total %> player review<%= fbStats.total === 1 ? '' : 's' %></span>
           </div>
-          <span class="hint">Optional — skip it if you would rather just write.</span>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- 2-Column Hub: Left = Public Reviews Feed, Right = Submission Form -->
+    <div class="feedback-wrap">
+      <div class="feedback-feed-col">
+        <div class="feedback-filter-bar">
+          <button type="button" class="fb-filter-pill is-active" data-topic="all">All (<%= fbList.length %>)</button>
+          <% fbTopics.forEach(function (t) { %>
+            <% var count = fbList.filter(function(f){ return f.topic === t; }).length; %>
+            <% if (count > 0) { %>
+              <button type="button" class="fb-filter-pill" data-topic="<%= t %>"><%= t %> (<%= count %>)</button>
+            <% } %>
+          <% }) %>
         </div>
 
-        <label class="wl-field">
-          <span class="wl-label">What is this about?</span>
-          <select name="topic">
-            <% fbTopics.forEach(function (t) { %><option value="<%= t %>"><%= t %></option><% }) %>
-          </select>
-        </label>
-
-        <label class="wl-field">
-          <span class="wl-label">Your feedback <em>required</em></span>
-          <textarea name="message" rows="5" required maxlength="1500"
-                    placeholder="What works, what does not, what you would change."></textarea>
-        </label>
-
-        <div class="wl-field-row">
-          <label class="wl-field">
-            <span class="wl-label">Name</span>
-            <input type="text" name="name" maxlength="60" placeholder="Optional" />
-          </label>
-          <label class="wl-field">
-            <span class="wl-label">Email</span>
-            <input type="email" name="email" maxlength="160" placeholder="Only if you want a reply" />
-          </label>
+        <div class="feedback-cards-stream" id="feedbackCardsStream">
+          <% if (fbList.length) { %>
+            <% fbList.forEach(function (f) { %>
+              <article class="player-review-card" data-topic="<%= f.topic %>">
+                <div class="prc-header">
+                  <div class="prc-author">
+                    <span class="prc-avatar"><%= (f.name || 'P')[0].toUpperCase() %></span>
+                    <div>
+                      <span class="prc-name"><%= f.name || 'Anonymous Player' %></span>
+                      <time class="prc-date"><%= new Date(f.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) %></time>
+                    </div>
+                  </div>
+                  <div class="prc-meta">
+                    <span class="badge topic-badge"><%= f.topic %></span>
+                    <% if (f.rating) { %>
+                      <div class="prc-stars" title="<%= f.rating %> out of 5 stars">
+                        <% for (var r = 1; r <= 5; r++) { %>
+                          <span class="star-icon <%= r <= f.rating ? 'is-filled' : '' %>">&#9733;</span>
+                        <% } %>
+                      </div>
+                    <% } %>
+                  </div>
+                </div>
+                <div class="prc-body">
+                  <p><%= f.message %></p>
+                </div>
+              </article>
+            <% }) %>
+          <% } else { %>
+            <div class="feedback-empty-state">
+              <div class="empty-icon">💬</div>
+              <h4>No public reviews yet</h4>
+              <p>Be the first player to share feedback and impressions for <strong><%= game.title %></strong> using the form.</p>
+            </div>
+          <% } %>
         </div>
+      </div>
 
-        <label class="wl-consent">
-          <input type="checkbox" name="canReply" />
-          <span>
-            You can email me back about this.
-            <span class="wl-consent-hint">We only use it to reply to this feedback.</span>
-          </span>
-        </label>
+      <!-- Right Column: Submission Form -->
+      <div class="feedback-form-col">
+        <form class="feedback-form" method="POST" action="/games/<%= game.slug %>/feedback">
+          <h3>Leave a Review</h3>
+          <p class="hint" style="margin-bottom: 20px;">
+            Your review and player name will appear publicly below for everyone to see. Your email remains <strong>100% private</strong> and is never shown.
+          </p>
 
-        <button type="submit" class="btn btn-primary btn-block">Send feedback</button>
-      </form>
+          <div class="fb-rating">
+            <span class="wl-label">Your Rating</span>
+            <div class="fb-stars">
+              <% [5,4,3,2,1].forEach(function (n) { %>
+                <input type="radio" name="rating" id="fb<%= game.id %>-<%= n %>" value="<%= n %>" <%= n === 5 ? 'checked' : '' %> />
+                <label for="fb<%= game.id %>-<%= n %>" title="<%= n %> out of 5">
+                  <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+                  </svg>
+                </label>
+              <% }) %>
+            </div>
+          </div>
+
+          <label class="wl-field">
+            <span class="wl-label">Category / Topic</span>
+            <select name="topic">
+              <% fbTopics.forEach(function (t) { %><option value="<%= t %>"><%= t %></option><% }) %>
+            </select>
+          </label>
+
+          <label class="wl-field">
+            <span class="wl-label">Your Review &amp; Thoughts <em>required</em></span>
+            <textarea name="message" rows="5" required maxlength="1500"
+                      placeholder="What works, what needs polish, bugs found, or story impressions..."></textarea>
+          </label>
+
+          <div class="wl-field-row">
+            <label class="wl-field">
+              <span class="wl-label">Player Name</span>
+              <input type="text" name="name" maxlength="60" placeholder="e.g. WolfPilot (or leave blank)" />
+            </label>
+            <label class="wl-field">
+              <span class="wl-label">Email <span class="hint">(Private &mdash; never shown)</span></span>
+              <input type="email" name="email" maxlength="160" placeholder="Optional — for dev reply" />
+            </label>
+          </div>
+
+          <label class="wl-consent">
+            <input type="checkbox" name="canReply" />
+            <span>
+              The dev team may email me back about this feedback.
+              <span class="wl-consent-hint">Emails are strictly private.</span>
+            </span>
+          </label>
+
+          <button type="submit" class="btn btn-primary btn-block">Post Review &amp; Feedback</button>
+        </form>
+      </div>
     </div>
   </div>
 </section>
@@ -932,6 +987,29 @@
 </div>
 
 <script>
+    // Topic filtering for player reviews
+  (function () {
+    var filterBtns = document.querySelectorAll('.fb-filter-pill');
+    var cards = document.querySelectorAll('.player-review-card');
+    if (!filterBtns.length) return;
+
+    filterBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        filterBtns.forEach(function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        var topic = btn.getAttribute('data-topic');
+
+        cards.forEach(function (card) {
+          if (topic === 'all' || card.getAttribute('data-topic') === topic) {
+            card.style.display = '';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+  })();
+
   // Filter tabs for downloads section
   (function () {
     var filterBtns = document.querySelectorAll('.dl-filter-btn');

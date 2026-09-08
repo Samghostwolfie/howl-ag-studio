@@ -31,7 +31,7 @@
         <% if (m.type === 'video' && m.mode === 'iframe') { %>
           <div class="devlog-embed">
             <iframe src="<%= m.src %>" title="<%= entry.title %> video <%= i + 1 %>"
-                    allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
           </div>
         <% } else if (m.type === 'video') { %>
           <video src="<%= m.src %>" controls preload="metadata"></video>

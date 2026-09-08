@@ -829,8 +829,7 @@
       </div>
 
       <p class="muted small" style="margin:-30px 0 30px;max-width:72ch">
-        This is private — feedback never appears on the public site, which is what lets people
-        be blunt. Only the people who ticked "you can email me back" expect a reply.
+        Feedback and reviews are displayed publicly on game pages for visitors to read. Email addresses are strictly private and visible only here to administrators. You can toggle public visibility (Hide/Show) or delete individual entries below.
       </p>
 
       <% if (!groups.length) { %><p class="muted">No feedback yet.</p><% } %>
@@ -862,6 +861,7 @@
                     <span class="badge status-demo"><%= f.topic %></span>
                     <% if (f.rating) { %><span class="badge-dup"><%= f.rating %>/5</span><% } %>
                     <% if (f.canReply && f.email) { %><span class="badge-consent">wants a reply</span><% } %>
+                    <% if (f.hidden) { %><span class="badge" style="background:#ef4444;color:#fff;">Hidden</span><% } else { %><span class="badge" style="background:rgba(34,197,94,0.2);color:#4ade80;border:1px solid rgba(34,197,94,0.4);">Public</span><% } %>
                   </div>
                 </div>
 
@@ -872,7 +872,10 @@
                 </dl>
 
                 <div class="wl-person-actions">
-                  <form method="POST" action="<%= adminPath %>/feedback/<%= f.id %>/delete" onsubmit="return confirm('Delete this feedback?');">
+                  <form method="POST" action="<%= adminPath %>/feedback/<%= f.id %>/toggle-hide" style="display:inline-block;margin-right:8px;">
+                    <button class="btn btn-ghost btn-sm" type="submit"><%= f.hidden ? 'Show on Site' : 'Hide from Site' %></button>
+                  </form>
+                  <form method="POST" action="<%= adminPath %>/feedback/<%= f.id %>/delete" onsubmit="return confirm('Delete this feedback?');" style="display:inline-block;">
                     <button class="btn btn-ghost btn-sm" type="submit">Delete</button>
                   </form>
                 </div>

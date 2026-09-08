@@ -849,7 +849,7 @@ app.post('/games/:slug/feedback', (req, res) => {
   });
   db.write('feedback', all);
 
-  req.flash('success', 'Thanks — feedback like this genuinely shapes the game.');
+  req.flash('success', 'Thank you! Your review & feedback has been posted.');
   res.redirect(`/games/${game.slug}#feedback`);
 });
 
@@ -859,6 +859,18 @@ app.get('/games/:slug', (req, res) => {
   if (!game) return res.status(404).render('404', { title: 'Not found' });
   const otherGames = games.filter((g) => g.id !== game.id && g.status !== 'archived').slice(0, 4);
   const fb = feedbackForGame(game.id);
+  // Public feedbacks list — strictly sanitize to ensure email & visitor hashes are never published
+  const publicFeedbacks = fb
+    .filter((f) => !f.hidden)
+    .map((f) => ({
+      id: f.id,
+      name: f.name || 'Anonymous Player',
+      topic: f.topic || 'General',
+      rating: f.rating || 0,
+      message: f.message,
+      date: f.date,
+    }));
+
   res.render('game', {
     game,
     otherGames,
@@ -867,6 +879,7 @@ app.get('/games/:slug', (req, res) => {
     voices: voicesForGame(game.id),
     feedbackTopics: FEEDBACK_TOPICS,
     feedbackStats: feedbackStats(fb),
+    feedbacks: publicFeedbacks,
     title: game.title,
   });
 });
@@ -2040,6 +2053,17 @@ app.get(`${A}/feedback`, requireAuth, (req, res) => {
 app.post(`${A}/feedback/:id/delete`, requireAuth, (req, res) => {
   db.write('feedback', getFeedbackRaw().filter((f) => f.id !== req.params.id));
   req.flash('success', 'Feedback removed.');
+  res.redirect(`${A}/feedback`);
+});
+
+app.post(`${A}/feedback/:id/toggle-hide`, requireAuth, (req, res) => {
+  const all = getFeedbackRaw();
+  const item = all.find((f) => f.id === req.params.id);
+  if (item) {
+    item.hidden = !item.hidden;
+    db.write('feedback', all);
+    req.flash('success', item.hidden ? 'Feedback hidden from public site.' : 'Feedback made visible on public site.');
+  }
   res.redirect(`${A}/feedback`);
 });
 
