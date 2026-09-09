@@ -1197,6 +1197,14 @@ app.get('/api/games/:slug/downloads/:id/stream', async (req, res) => {
 
     if (!targetUrl) return res.status(400).send('No download URL specified for this build');
 
+    // CRITICAL BANDWIDTH SAVER:
+    // If client does not explicitly request piped stream with ?proxy=true,
+    // redirect directly to Google Drive! This bypasses server bandwidth entirely
+    // so free host bandwidth limits (Render/Koyeb) are NEVER exhausted by large game files!
+    if (req.query.proxy !== 'true') {
+      return res.redirect(302, targetUrl);
+    }
+
     const controller = new AbortController();
     req.on('close', () => { if (!res.writableEnded) { try { controller.abort(); } catch(e){} } });
 
