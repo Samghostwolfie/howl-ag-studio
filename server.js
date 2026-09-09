@@ -10,9 +10,12 @@ const slugify = require('slugify');
 const db = require('./lib/db');
 const { ensureAdmin, verifyLogin, updatePassword, requireAuth } = require('./lib/auth');
 const {
-  uploadCover, uploadScreenshots, uploadTeamPhoto, uploadBuild,
+  uploadCover, uploadScreenshots, uploadTeamPhoto, uploadBuild, uploadHtmlGame,
   handleUploadErrors, resolveUploadUrl, IMAGE_LIMIT_MB, USE_FIREBASE_STORAGE,
 } = require('./lib/upload');
+const {
+  saveHtmlGameToVault, hasHtmlGameInVault, getSessionPayload, deleteHtmlGameFromVault,
+} = require('./lib/htmlGameSecurity');
 
 // Bumped whenever the server code changes — printed at boot and shown in the admin
 // sidebar so you can instantly tell whether a stale process is still running.
@@ -857,6 +860,7 @@ app.get('/games/:slug', (req, res) => {
   const games = withCounts(getGames());
   const game = games.find((g) => g.slug === req.params.slug);
   if (!game) return res.status(404).render('404', { title: 'Not found' });
+  game.hasHtmlGame = !!(game.htmlGame && game.htmlGame.enabled && hasHtmlGameInVault(game.id));
   const otherGames = games.filter((g) => g.id !== game.id && g.status !== 'archived').slice(0, 4);
   const fb = feedbackForGame(game.id);
   // Public feedbacks list — strictly sanitize to ensure email & visitor hashes are never published
@@ -1489,6 +1493,7 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
     imageLinks, videoLinks, wishlistEnabled, coverImage,
     fundraiserStatus, fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch, fundraiserPaypalUrl,
+    htmlGameEnabled, htmlGameTitle, htmlGameAspectRatio, htmlGameControlsHint, htmlGameRawCode,
   } = req.body;
 
   if (!title || !title.trim()) {
@@ -1554,6 +1559,63 @@ app.post(`${A}/games`, requireAuth, coverUploadOnCreate, (req, res) => {
   res.redirect(`${A}/games/${game.id}/edit`);
 });
 
+app.post(`${A}/games/:id/html-game`, requireAuth, uploadHtmlGame.single('htmlGameFile'), (req, res) => {
+  const games = getGamesRaw();
+  const game = games.find((g) => g.id === req.params.id);
+  if (!game) {
+    req.flash('error', 'Game not found.');
+    return res.redirect(`${A}/games`);
+  }
+
+  try {
+    const rawCode = req.body.rawCode;
+    const file = req.file;
+    let meta = null;
+
+    if (file || (rawCode && rawCode.trim())) {
+      meta = saveHtmlGameToVault(game.id, {
+        rawCode: rawCode,
+        fileBuffer: file ? file.buffer : null,
+        fileName: file ? file.originalname : null,
+      });
+    }
+
+    game.htmlGame = game.htmlGame || {};
+    game.htmlGame.enabled = req.body.enabled === 'on' || req.body.enabled === 'true';
+    game.htmlGame.title = (req.body.htmlGameTitle || game.title).trim();
+    game.htmlGame.aspectRatio = req.body.aspectRatio || '16:9';
+    game.htmlGame.controlsHint = (req.body.controlsHint || '').trim();
+    if (meta) {
+      game.htmlGame.displayName = meta.displayName;
+      game.htmlGame.fileType = meta.fileType;
+      game.htmlGame.size = meta.size;
+    }
+    game.htmlGame.updatedAt = new Date().toISOString();
+    game.updatedAt = new Date().toISOString();
+
+    saveGames(games);
+    req.flash('success', 'HTML Game emulator settings updated successfully.');
+  } catch (err) {
+    console.error('[html-game] upload/save error:', err.message);
+    req.flash('error', `Failed to save HTML game: ${err.message}`);
+  }
+
+  res.redirect(`${A}/games/${game.id}/edit`);
+});
+
+app.post(`${A}/games/:id/html-game/delete`, requireAuth, (req, res) => {
+  const games = getGamesRaw();
+  const game = games.find((g) => g.id === req.params.id);
+  if (game) {
+    deleteHtmlGameFromVault(game.id);
+    delete game.htmlGame;
+    game.updatedAt = new Date().toISOString();
+    saveGames(games);
+    req.flash('success', 'HTML game removed from emulator.');
+  }
+  res.redirect(`${A}/games/${req.params.id}/edit`);
+});
+
 app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
   const games = getGamesRaw();
   const game = games.find((g) => g.id === req.params.id);
@@ -1614,6 +1676,27 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     updatedAt: new Date().toISOString(),
   });
 
+  if (htmlGameRawCode && htmlGameRawCode.trim()) {
+    try {
+      const meta = saveHtmlGameToVault(game.id, { rawCode: htmlGameRawCode.trim() });
+      game.htmlGame = game.htmlGame || {};
+      game.htmlGame.displayName = meta.displayName;
+      game.htmlGame.fileType = meta.fileType;
+      game.htmlGame.size = meta.size;
+    } catch(err) {
+      console.error('[html-game] rawCode save error:', err.message);
+    }
+  }
+
+  if (htmlGameEnabled !== undefined || game.htmlGame || (htmlGameRawCode && htmlGameRawCode.trim())) {
+    game.htmlGame = game.htmlGame || {};
+    game.htmlGame.enabled = htmlGameEnabled === 'on' || htmlGameEnabled === 'true';
+    if (htmlGameTitle !== undefined) game.htmlGame.title = (htmlGameTitle || game.title).trim();
+    if (htmlGameAspectRatio !== undefined) game.htmlGame.aspectRatio = htmlGameAspectRatio;
+    if (htmlGameControlsHint !== undefined) game.htmlGame.controlsHint = (htmlGameControlsHint || '').trim();
+    game.htmlGame.updatedAt = new Date().toISOString();
+  }
+
   if (typeof coverImage === 'string' && coverImage.trim()) {
     game.coverImage = coverImage.trim();
   }
@@ -1659,6 +1742,7 @@ app.post(`${A}/games/:id/screenshots/:filename/delete`, requireAuth, (req, res) 
   }
   res.redirect(`${A}/games/${req.params.id}/edit`);
 });
+
 
 app.post(`${A}/games/:id/build`, requireAuth,
   handleUploadErrors(uploadBuild.single('build'), (req) => `${A}/games/${req.params.id}/edit`, 'builds'),
@@ -2361,6 +2445,29 @@ app.post(`${A}/settings/password`, requireAuth, (req, res) => {
 
 // =====================================================================
 
+// ---------- secure html game emulator session ----------
+app.post('/api/games/:slug/emulator-session', (req, res) => {
+  const games = getGamesRaw();
+  const game = games.find((g) => g.slug === req.params.slug);
+  if (!game || !game.htmlGame || !game.htmlGame.enabled) {
+    return res.status(404).json({ error: 'No playable HTML game configured for this title.' });
+  }
+
+  const payloadData = getSessionPayload(game.id);
+  if (!payloadData) {
+    return res.status(404).json({ error: 'Game payload not found in secure vault.' });
+  }
+
+  res.json({
+    success: true,
+    title: game.htmlGame.title || game.title,
+    aspectRatio: game.htmlGame.aspectRatio || '16:9',
+    controlsHint: game.htmlGame.controlsHint || '',
+    sessionKey: payloadData.sessionKey,
+    payload: payloadData.payload,
+  });
+});
+
 app.use((req, res) => {
   // An unmatched /admin/ request almost always means one thing: the running Node
   // process is older than the files on disk (Node only reads server.js once, at boot).
@@ -2412,7 +2519,10 @@ db.init()
   .then((info) => {
     ensureAdmin();
 
-    const server = app.listen(PORT, () => {
+    const server = 
+
+
+app.listen(PORT, () => {
       const storageLabel = {
         firebase: `Firebase Firestore (${info.collections || 0} collections loaded)`,
         postgres: 'Postgres (data is safe across restarts)',

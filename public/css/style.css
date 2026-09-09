@@ -2630,3 +2630,526 @@ strong { color: var(--white); }
   gap: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+
+/* ==========================================================================
+   CYBERPUNK WEB ARCADE EMULATOR & IN-GAME RUNNER
+   ========================================================================== */
+.stage-view-switcher {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  background: rgba(13, 17, 23, 0.7);
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+}
+
+.stage-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-family: var(--font-display, inherit);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.stage-tab-btn:hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stage-tab-btn.active {
+  color: #000;
+  background: var(--accent-acid);
+  border-color: var(--accent-acid);
+  box-shadow: 0 0 18px rgba(180, 255, 57, 0.35);
+}
+
+.pulse-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #000;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #000;
+  animation: emuPulseDot 1.4s infinite ease-in-out;
+}
+
+@keyframes emuPulseDot {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* --- Emulator Frame --- */
+.cyber-emulator-frame {
+  background: #07090d;
+  border: 1px solid rgba(180, 255, 57, 0.4);
+  border-radius: 4px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.85), 0 0 25px rgba(180, 255, 57, 0.12);
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: max-width 0.3s ease, transform 0.3s ease;
+}
+
+.cyber-emulator-frame.is-theater {
+  position: relative;
+  z-index: 100;
+  width: 100%;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.95), 0 0 35px rgba(180, 255, 57, 0.2);
+}
+
+.cyber-emulator-frame:fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.cyber-emulator-frame:fullscreen .emu-screen-viewport {
+  flex: 1;
+  aspect-ratio: auto !important;
+  height: auto !important;
+}
+
+/* Top Bezel */
+.emu-bezel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: linear-gradient(180deg, #131822 0%, #090c12 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+}
+
+.emu-top-branding {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emu-logo-icon {
+  color: var(--accent-acid);
+  font-size: 1rem;
+  animation: emuFlicker 3s infinite;
+}
+
+.emu-logo-text {
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--white);
+}
+
+.emu-ver {
+  color: var(--accent-cyan, #00f0ff);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.emu-chip-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 2px 6px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: #38bdf8;
+  border-radius: 2px;
+}
+
+.emu-title-marquee {
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent-acid);
+  text-transform: uppercase;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.emu-top-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.led-green {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.led-cyan {
+  background: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
+}
+
+.led-lime {
+  color: var(--accent-acid);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+/* Screen Viewport */
+.emu-screen-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #020305;
+  overflow: hidden;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
+}
+
+.cyber-emulator-frame[data-aspect="4:3"] .emu-screen-viewport {
+  aspect-ratio: 4 / 3;
+}
+
+.cyber-emulator-frame[data-aspect="1:1"] .emu-screen-viewport {
+  aspect-ratio: 1 / 1;
+}
+
+.cyber-emulator-frame[data-aspect="responsive"] .emu-screen-viewport {
+  aspect-ratio: 16 / 9;
+  min-height: 480px;
+}
+
+.emu-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 8;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.4) 50%);
+  background-size: 100% 4px;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.emu-scanlines.scanlines-off {
+  opacity: 0;
+}
+
+.emu-glare-effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+}
+
+/* Standby Screen */
+.emu-standby-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 30px;
+  background: radial-gradient(circle at center, #0e1420 0%, #030508 100%);
+}
+
+.standby-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(180, 255, 57, 0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(180, 255, 57, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+}
+
+.standby-content {
+  position: relative;
+  z-index: 6;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.standby-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--accent-acid);
+  margin-bottom: 8px;
+  background: rgba(180, 255, 57, 0.1);
+  padding: 3px 10px;
+  border-radius: 2px;
+  border: 1px solid rgba(180, 255, 57, 0.3);
+}
+
+.standby-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--white);
+  margin: 0 0 6px;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.standby-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0 0 24px;
+}
+
+/* Run Button */
+.emu-run-button {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 46px;
+  background: linear-gradient(135deg, rgba(180, 255, 57, 0.2) 0%, rgba(0, 240, 255, 0.15) 100%);
+  border: 2px solid var(--accent-acid);
+  color: #fff;
+  cursor: pointer;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  box-shadow: 0 0 28px rgba(180, 255, 57, 0.35), inset 0 0 20px rgba(180, 255, 57, 0.2);
+  transition: all 0.25s ease;
+  margin-bottom: 22px;
+}
+
+.emu-run-button:hover {
+  transform: translateY(-2px) scale(1.02);
+  background: linear-gradient(135deg, rgba(180, 255, 57, 0.3) 0%, rgba(0, 240, 255, 0.25) 100%);
+  border-color: #fff;
+  box-shadow: 0 0 40px rgba(180, 255, 57, 0.6), inset 0 0 25px rgba(180, 255, 57, 0.35);
+}
+
+.emu-run-button:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.run-btn-scan {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: emuRunBtnGlow 2.5s infinite linear;
+}
+
+@keyframes emuRunBtnGlow {
+  0% { left: -100%; }
+  100% { left: 200%; }
+}
+
+.run-btn-icon {
+  font-size: 1.2rem;
+  color: var(--accent-acid);
+  margin-bottom: 2px;
+}
+
+.run-btn-text {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--white);
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+}
+
+.run-btn-sub {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--accent-cyan, #00f0ff);
+  margin-top: 4px;
+}
+
+.standby-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 14px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+}
+
+.controls-tag {
+  color: var(--accent-acid);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.controls-text {
+  color: var(--white);
+  font-weight: 500;
+}
+
+.standby-security-notice {
+  font-size: 0.76rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Boot Screen */
+.emu-boot-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: #05070a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.boot-console {
+  width: 100%;
+  max-width: 440px;
+  color: var(--accent-acid);
+  font-size: 0.88rem;
+  line-height: 1.8;
+}
+
+.boot-ok {
+  color: #38bdf8;
+  font-weight: bold;
+}
+
+.boot-progress-bar {
+  margin-top: 14px;
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.boot-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-acid));
+  transition: width 0.6s ease;
+}
+
+/* Active Game Container */
+.emu-game-container {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+}
+
+.emu-game-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+/* Bottom Bezel Controls */
+.emu-bezel-bottom {
+  padding: 8px 16px;
+  background: linear-gradient(180deg, #090c12 0%, #131822 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+
+.emu-hud-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.emu-hud-btn {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.emu-hud-btn:hover {
+  background: rgba(180, 255, 57, 0.15);
+  border-color: var(--accent-acid);
+  color: var(--accent-acid);
+}
+
+.emu-hud-btn.active {
+  background: var(--accent-acid);
+  color: #000;
+  border-color: var(--accent-acid);
+}
+
+.emu-btn-danger {
+  margin-left: auto;
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.emu-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.emu-standby-hint {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: center;
+}
+
+.hint-divider {
+  color: var(--accent-acid);
+}
+
+@keyframes emuFlicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.4; }
+  94% { opacity: 1; }
+  96% { opacity: 0.6; }
+  97% { opacity: 1; }
+}

@@ -354,6 +354,46 @@
             </div>
           <% } %>
         </fieldset>
+
+        <fieldset class="fieldset" id="htmlGameFieldset">
+          <legend>🎮 HTML5 Web Game &amp; Arcade Emulator</legend>
+          <p class="hint" style="margin:0">
+            Allow visitors to play your HTML5 game directly in the game area with a custom cyberpunk arcade emulator.
+            Code is encrypted into a secure server vault and protected from inspection with sandboxed RAM execution.
+          </p>
+
+          <label class="check-row">
+            <input type="checkbox" name="htmlGameEnabled" id="htmlGameToggle"
+                   <%= (editingGame.htmlGame && editingGame.htmlGame.enabled) ? 'checked' : '' %> />
+            <span>
+              Enable In-Browser Playable Game (Web Arcade Emulator)
+              <span class="hint">When enabled and an HTML game is in the vault, the cyberpunk emulator appears in the game area with a glowing RUN button. If unchecked, the emulator is completely hidden.</span>
+            </span>
+          </label>
+
+          <div class="form-grid">
+            <label>Emulator Title <span class="hint">display title on the arcade bezel</span>
+              <input type="text" name="htmlGameTitle" value="<%= (editingGame.htmlGame && editingGame.htmlGame.title) || '' %>" placeholder="<%= editingGame.title || 'Arcade Edition' %>" />
+            </label>
+            <label>Aspect Ratio Preset
+              <select name="htmlGameAspectRatio">
+                <option value="16:9" <%= (!editingGame.htmlGame || editingGame.htmlGame.aspectRatio === '16:9') ? 'selected' : '' %>>16:9 Widescreen (Default: 960 × 540)</option>
+                <option value="4:3" <%= (editingGame.htmlGame && editingGame.htmlGame.aspectRatio === '4:3') ? 'selected' : '' %>>4:3 Retro Arcade (800 × 600)</option>
+                <option value="1:1" <%= (editingGame.htmlGame && editingGame.htmlGame.aspectRatio === '1:1') ? 'selected' : '' %>>1:1 Square (600 × 600)</option>
+                <option value="responsive" <%= (editingGame.htmlGame && editingGame.htmlGame.aspectRatio === 'responsive') ? 'selected' : '' %>>Responsive Fluid (Fit Viewport)</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Controls Guide / Key Bindings <span class="hint">shown on the arcade bezel &amp; standby screen</span>
+            <input type="text" name="htmlGameControlsHint" value="<%= (editingGame.htmlGame && editingGame.htmlGame.controlsHint) || '' %>" placeholder="e.g. WASD / Arrow Keys: Move · Space: Jump · Mouse: Aim & Shoot" />
+          </label>
+
+          <label>Paste HTML5 / Canvas Game Code directly (Optional)
+            <span class="hint">For quick single-file HTML5 games or canvas scripts — you can paste raw code here, or upload a .html / .zip file below.</span>
+            <textarea name="htmlGameRawCode" rows="4" placeholder="<!DOCTYPE html><html>... or <canvas id='game'></canvas><script>...</script>"></textarea>
+          </label>
+        </fieldset>
       </form>
 
       <% if (editingGame.id) { %>
@@ -400,6 +440,50 @@
             </form>
             <% if (editingGame.downloadFile) { %>
               <p class="muted small" style="margin-top:12px">Current file: <code><%= editingGame.downloadFile %></code></p>
+            <% } %>
+          </div>
+
+          <div class="upload-panel" style="grid-column: 1 / -1;">
+            <div class="upload-panel-head">
+              <h3>🎮 HTML5 Game Package (File or Zip)</h3>
+              <span class="instant-tag">Vault Encrypted</span>
+            </div>
+            <p class="hint">
+              Upload your self-contained <code>.html</code> game file, or a <code>.zip</code> package containing <code>index.html</code> and game assets.
+              Files are automatically encrypted into the server vault and wrapped with anti-inspection shields.
+            </p>
+            <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/html-game" enctype="multipart/form-data" class="inline-form" style="gap:12px;align-items:flex-end;">
+              <input type="hidden" name="enabled" value="true" />
+              <input type="hidden" name="aspectRatio" value="<%= (editingGame.htmlGame && editingGame.htmlGame.aspectRatio) || '16:9' %>" />
+              <input type="hidden" name="controlsHint" value="<%= (editingGame.htmlGame && editingGame.htmlGame.controlsHint) || '' %>" />
+              <div style="flex:1;">
+                <label style="margin:0;font-size:0.85rem;color:var(--muted)">Select .html or .zip file:
+                  <input type="file" name="htmlGameFile" accept=".html,.htm,.zip" required style="margin-top:4px;" />
+                </label>
+              </div>
+              <button type="submit" class="btn btn-solid btn-sm">Upload &amp; Encrypt</button>
+            </form>
+
+            <% if (editingGame.htmlGame) { %>
+              <div style="margin-top:16px;padding:12px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:4px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                <div>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="badge" style="background:#22c55e;color:#000;font-weight:700;">ACTIVE IN VAULT</span>
+                    <strong style="color:var(--white);"><%= editingGame.htmlGame.displayName || 'game.html' %></strong>
+                    <span class="muted small">(<%= ((editingGame.htmlGame.size || 0) / 1024).toFixed(1) %> KB · <%= editingGame.htmlGame.fileType || 'html' %>)</span>
+                  </div>
+                  <div class="muted small" style="margin-top:4px;">
+                    Status: <strong><%= editingGame.htmlGame.enabled ? '🟢 Enabled on Public Page' : '🔴 Disabled / Hidden' %></strong> · Ratio: <strong><%= editingGame.htmlGame.aspectRatio || '16:9' %></strong>
+                    <% if (editingGame.htmlGame.controlsHint) { %> · Controls: <em><%= editingGame.htmlGame.controlsHint %></em><% } %>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <a href="/games/<%= editingGame.slug %>" target="_blank" class="btn btn-ghost btn-sm">Preview in Game</a>
+                  <form method="POST" action="<%= adminPath %>/games/<%= editingGame.id %>/html-game/delete" onsubmit="return confirm('Remove this HTML game from the emulator?');" style="margin:0;">
+                    <button class="btn btn-danger btn-sm" type="submit">Remove</button>
+                  </form>
+                </div>
+              </div>
             <% } %>
           </div>
         </div>

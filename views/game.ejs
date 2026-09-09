@@ -27,7 +27,101 @@
 
     <!-- ---------- media ---------- -->
     <div>
-      <div class="media-stage" id="mediaStage">
+      <% if (game.hasHtmlGame) { %>
+        <div class="stage-view-switcher" id="stageSwitcher">
+          <button type="button" class="stage-tab-btn active" id="btnShowEmulator">
+            <span class="pulse-indicator"></span> 🎮 Play Web Arcade (Live)
+          </button>
+          <button type="button" class="stage-tab-btn" id="btnShowGallery">
+            🎬 Trailer &amp; Gallery
+          </button>
+        </div>
+
+        <div class="cyber-emulator-frame" id="cyberEmulator" data-slug="<%= game.slug %>" data-aspect="<%= (game.htmlGame && game.htmlGame.aspectRatio) || '16:9' %>">
+          <div class="emu-bezel-top">
+            <div class="emu-top-branding">
+              <span class="emu-logo-icon">⚡</span>
+              <span class="emu-logo-text">HOWL-EMU <span class="emu-ver">v2.4</span></span>
+              <span class="emu-chip-badge">HARDWARE SANDBOX</span>
+            </div>
+            <div class="emu-title-marquee">
+              <span class="marquee-text"><%= (game.htmlGame && game.htmlGame.title) || game.title %></span>
+            </div>
+            <div class="emu-top-status">
+              <span class="status-led led-green" title="Power Ready"></span>
+              <span class="status-led led-cyan" title="Sandbox Active"></span>
+              <span class="status-led led-lime" id="emuFpsCounter" style="display:none;">60 FPS</span>
+            </div>
+          </div>
+
+          <div class="emu-screen-viewport" id="emuScreenViewport">
+            <div class="emu-scanlines" id="emuScanlines"></div>
+            <div class="emu-glare-effect"></div>
+
+            <!-- Standby screen -->
+            <div class="emu-standby-screen" id="emuStandby">
+              <div class="standby-grid-bg"></div>
+              <div class="standby-content">
+                <div class="standby-badge">WEB ARCADE RUNNER</div>
+                <h3 class="standby-title"><%= (game.htmlGame && game.htmlGame.title) || game.title %></h3>
+                <p class="standby-desc">In-Browser Playable Game · Sandboxed RAM Execution</p>
+                
+                <button type="button" class="emu-run-button" id="emuRunBtn" aria-label="Run game in emulator">
+                  <span class="run-btn-scan"></span>
+                  <span class="run-btn-icon">▶</span>
+                  <span class="run-btn-text">RUN GAME</span>
+                  <span class="run-btn-sub">INITIALIZE NEURAL LINK</span>
+                </button>
+
+                <div class="standby-controls-bar">
+                  <span class="controls-tag">CONTROLS:</span>
+                  <span class="controls-text"><%= (game.htmlGame && game.htmlGame.controlsHint) || 'Keyboard & Mouse Active' %></span>
+                </div>
+
+                <div class="standby-security-notice">
+                  <span class="lock-icon">🔒</span> Protected by Memory Sandboxing &amp; Anti-Inspection Shields
+                </div>
+              </div>
+            </div>
+
+            <!-- Boot / Loading screen -->
+            <div class="emu-boot-screen" id="emuBoot" style="display:none;">
+              <div class="boot-console">
+                <div class="boot-line">&gt; HOWL-EMU BIOS v2.4 INITIALIZING...</div>
+                <div class="boot-line">&gt; VERIFYING HOST SECURITY TOKEN... <span class="boot-ok">OK</span></div>
+                <div class="boot-line">&gt; DECRYPTING IN-MEMORY VAULT... <span class="boot-ok">OK</span></div>
+                <div class="boot-line">&gt; LOCKING EXECUTION SANDBOX... <span class="boot-ok">OK</span></div>
+                <div class="boot-line">&gt; LAUNCHING ENGINE...</div>
+                <div class="boot-progress-bar"><div class="boot-progress-fill" id="emuBootProgress"></div></div>
+              </div>
+            </div>
+
+            <!-- Viewport container with Iframe -->
+            <div class="emu-game-container" id="emuGameContainer" style="display:none;">
+              <iframe id="emuIframe" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms" title="<%= game.title %> Playable Game" allow="autoplay"></iframe>
+            </div>
+          </div>
+
+          <!-- Bottom bezel HUD controls -->
+          <div class="emu-bezel-bottom">
+            <div class="emu-hud-controls" id="emuHudControls" style="display:none;">
+              <button type="button" class="emu-hud-btn" id="emuBtnRestart" title="Restart Game">⟲ Restart</button>
+              <button type="button" class="emu-hud-btn" id="emuBtnMute" title="Toggle Sound">🔊 Sound</button>
+              <button type="button" class="emu-hud-btn" id="emuBtnScanlines" title="Toggle CRT Scanlines">📺 Scanlines</button>
+              <button type="button" class="emu-hud-btn" id="emuBtnTheater" title="Expand within page">⛶ Theater</button>
+              <button type="button" class="emu-hud-btn" id="emuBtnFullscreen" title="Fullscreen">⤢ Fullscreen</button>
+              <button type="button" class="emu-hud-btn emu-btn-danger" id="emuBtnPowerOff" title="Stop &amp; Exit Game">⏹ Power Off</button>
+            </div>
+            <div class="emu-standby-hint" id="emuStandbyHint">
+              <span>HOWL A/G HARDWARE EMULATION</span>
+              <span class="hint-divider">·</span>
+              <span>ISOLATED SANDBOX</span>
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+      <div class="media-stage" id="mediaStage" style="<%= game.hasHtmlGame ? 'display:none;' : '' %>">
         <% if (media.length) { %>
           <% var first = media[0]; %>
           <% if (first.type === 'video' && first.mode === 'iframe') { %>

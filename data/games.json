@@ -123,6 +123,16 @@
         "fileSize": "320 MB",
         "description": "Complete high-fidelity FLAC/MP3 soundtrack by Massenburg Studios and 60-page digital concept artbook."
       }
-    ]
+    ],
+    "htmlGame": {
+      "enabled": true,
+      "title": "HOME // CYBERPUNK ARCADE EDITION",
+      "aspectRatio": "16:9",
+      "controlsHint": "WASD / Arrow Keys to Move · Spacebar to Fire",
+      "displayName": "pasted-code.html",
+      "fileType": "code",
+      "size": 6109,
+      "updatedAt": "2026-09-09T05:02:36.001Z"
+    }
   }
 ]
