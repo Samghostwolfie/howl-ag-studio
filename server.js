@@ -1630,6 +1630,7 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     releaseDate, developer, publisher, tags, features, sysMin, sysRec,
     imageLinks, videoLinks, wishlistEnabled, coverImage,
     fundraiserStatus, fundraiserEnabled, fundraiserGoal, fundraiserTitle, fundraiserPitch, fundraiserPaypalUrl,
+    htmlGameEnabled, htmlGameTitle, htmlGameAspectRatio, htmlGameControlsHint, htmlGameRawCode,
   } = req.body;
 
   if (title && title.trim() && title.trim() !== game.title) {
@@ -1676,9 +1677,15 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     updatedAt: new Date().toISOString(),
   });
 
-  if (htmlGameRawCode && htmlGameRawCode.trim()) {
+  const htmlGameRaw = req.body.htmlGameRawCode;
+  const htmlGameOn = req.body.htmlGameEnabled;
+  const htmlGameRatio = req.body.htmlGameAspectRatio;
+  const htmlGameT = req.body.htmlGameTitle;
+  const htmlGameControls = req.body.htmlGameControlsHint;
+
+  if (htmlGameRaw && typeof htmlGameRaw === 'string' && htmlGameRaw.trim()) {
     try {
-      const meta = saveHtmlGameToVault(game.id, { rawCode: htmlGameRawCode.trim() });
+      const meta = saveHtmlGameToVault(game.id, { rawCode: htmlGameRaw.trim() });
       game.htmlGame = game.htmlGame || {};
       game.htmlGame.displayName = meta.displayName;
       game.htmlGame.fileType = meta.fileType;
@@ -1688,12 +1695,12 @@ app.post(`${A}/games/:id`, requireAuth, coverUploadOnEdit, (req, res) => {
     }
   }
 
-  if (htmlGameEnabled !== undefined || game.htmlGame || (htmlGameRawCode && htmlGameRawCode.trim())) {
+  if (htmlGameOn !== undefined || game.htmlGame || (htmlGameRaw && typeof htmlGameRaw === 'string' && htmlGameRaw.trim())) {
     game.htmlGame = game.htmlGame || {};
-    game.htmlGame.enabled = htmlGameEnabled === 'on' || htmlGameEnabled === 'true';
-    if (htmlGameTitle !== undefined) game.htmlGame.title = (htmlGameTitle || game.title).trim();
-    if (htmlGameAspectRatio !== undefined) game.htmlGame.aspectRatio = htmlGameAspectRatio;
-    if (htmlGameControlsHint !== undefined) game.htmlGame.controlsHint = (htmlGameControlsHint || '').trim();
+    game.htmlGame.enabled = htmlGameOn === 'on' || htmlGameOn === 'true';
+    if (htmlGameT !== undefined) game.htmlGame.title = (htmlGameT || game.title).trim();
+    if (htmlGameRatio !== undefined) game.htmlGame.aspectRatio = htmlGameRatio;
+    if (htmlGameControls !== undefined) game.htmlGame.controlsHint = (htmlGameControls || '').trim();
     game.htmlGame.updatedAt = new Date().toISOString();
   }
 

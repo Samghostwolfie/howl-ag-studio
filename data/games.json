@@ -18,7 +18,7 @@
     "trailerUrl": "",
     "downloadFile": "",
     "createdAt": "2026-08-18T21:49:09.006Z",
-    "updatedAt": "2026-08-19T08:43:38.980Z",
+    "updatedAt": "2026-09-09T06:25:12.883Z",
     "wishlistEnabled": true,
     "imageLinks": [
       "https://drive.google.com/file/d/1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g/view?usp=drive_link"
@@ -86,42 +86,66 @@
       {
         "id": "dl_proto_1787490001",
         "type": "prototype",
+        "typeLabel": "Prototype",
+        "typeBadgeClass": "badge-prototype",
+        "typeIcon": "🧪",
         "title": "Home Alpha v0.1 Prototype (Unreal Engine 5)",
         "url": "https://drive.google.com/file/d/1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g/view?usp=sharing",
+        "driveId": "1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g",
+        "isGoogleDrive": true,
         "version": "v0.1.0-alpha",
         "platform": "windows",
         "fileSize": "1.85 GB",
-        "description": "First playable vertical slice featuring Chapter 1, combat mechanics, and debug sandbox."
+        "description": "First playable vertical slice featuring Chapter 1, combat mechanics, and debug sandbox.",
+        "createdAt": "2026-09-09T06:24:49.521Z"
       },
       {
         "id": "dl_demo_1787490002",
         "type": "demo",
+        "typeLabel": "Demo",
+        "typeBadgeClass": "badge-demo",
+        "typeIcon": "🎮",
         "title": "Home Official Teaser Demo",
         "url": "https://drive.google.com/file/d/1blKajI9mZafLOKXyj7MtGqD5egKkS6I6/view?usp=sharing",
+        "driveId": "1blKajI9mZafLOKXyj7MtGqD5egKkS6I6",
+        "isGoogleDrive": true,
         "version": "v1.0-demo",
         "platform": "windows",
         "fileSize": "650 MB",
-        "description": "Free public playable slice. Experience the opening atmosphere of Zipacna Transit Station."
+        "description": "Free public playable slice. Experience the opening atmosphere of Zipacna Transit Station.",
+        "createdAt": "2026-09-09T06:24:49.521Z"
       },
       {
         "id": "dl_full_1787490003",
         "type": "full",
+        "typeLabel": "Complete Game",
+        "typeBadgeClass": "badge-full",
+        "typeIcon": "👑",
         "title": "Home Complete Game",
         "url": "https://drive.google.com/file/d/1o9ybS44EDmvvduOCQiqVBu_6WrXr-4Ac/view?usp=sharing",
+        "driveId": "1o9ybS44EDmvvduOCQiqVBu_6WrXr-4Ac",
+        "isGoogleDrive": true,
         "version": "v1.0.0",
         "platform": "windows",
         "fileSize": "8.4 GB",
-        "description": "The full psychological horror survival experience. Complete story campaign."
+        "description": "The full psychological horror survival experience. Complete story campaign.",
+        "createdAt": "2026-09-09T06:24:49.521Z"
       },
       {
         "id": "dl_dlc_1787490004",
         "type": "dlc",
+        "typeLabel": "DLC",
+        "typeBadgeClass": "badge-dlc",
+        "typeIcon": "⚡",
         "title": "Home: Original Soundtrack & Digital Artbook DLC",
         "url": "https://drive.google.com/file/d/1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g/view?usp=sharing",
+        "driveId": "1mEhAvkORlbsloR03FhqDxjm9Zg83hv_g",
+        "isGoogleDrive": true,
         "version": "DLC-1.0",
         "platform": "all",
         "fileSize": "320 MB",
-        "description": "Complete high-fidelity FLAC/MP3 soundtrack by Massenburg Studios and 60-page digital concept artbook."
+        "description": "Complete high-fidelity FLAC/MP3 soundtrack by Massenburg Studios and 60-page digital concept artbook.",
+        "createdAt": "2026-09-09T06:24:49.521Z"
       }
     ],
     "htmlGame": {
@@ -132,7 +156,12 @@
       "displayName": "pasted-code.html",
       "fileType": "code",
       "size": 6109,
-      "updatedAt": "2026-09-09T05:02:36.001Z"
+      "updatedAt": "2026-09-09T06:25:12.883Z"
+    },
+    "fundraiserPaypalUrl": "",
+    "coverFocus": {
+      "x": 50,
+      "y": 50
     }
   }
 ]
