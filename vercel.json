@@ -19,5 +19,6 @@
       "src": "/(.*)",
       "dest": "server.js"
     }
-  ]
+  ],
+  "name": "howl-ag-studio"
 }

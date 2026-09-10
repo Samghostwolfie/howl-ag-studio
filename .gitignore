@@ -4,3 +4,4 @@ public/uploads/**
 !public/uploads/**/.gitkeep
 *.log
 .DS_Store
+.vercel
