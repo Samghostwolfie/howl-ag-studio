@@ -2530,60 +2530,59 @@ app.use((err, req, res, next) => {
 });
 
 // Storage has to be ready before anything reads from it.
+// Storage has to be ready before anything reads from it.
 db.init()
   .then((info) => {
     ensureAdmin();
 
-    const server = 
+    if (!process.env.VERCEL) {
+      const server = app.listen(PORT, () => {
+        const storageLabel = {
+          firebase: 'Firebase Firestore (' + (info.collections || 0) + ' collections loaded)',
+          postgres: 'Postgres (data is safe across restarts)',
+          files: 'local JSON files',
+        }[info.mode] || info.mode;
+        const uploadsLabel = USE_FIREBASE_STORAGE ? 'Firebase Storage (cloud)' : 'local disk';
 
+        const pay = payments.describeConfig();
 
-app.listen(PORT, () => {
-      const storageLabel = {
-        firebase: `Firebase Firestore (${info.collections || 0} collections loaded)`,
-        postgres: 'Postgres (data is safe across restarts)',
-        files: 'local JSON files',
-      }[info.mode] || info.mode;
-      const uploadsLabel = USE_FIREBASE_STORAGE ? 'Firebase Storage (cloud)' : 'local disk';
+        console.log('\n  Howl A/G Studio  v' + APP_VERSION);
+        console.log('  Storage:     ' + storageLabel);
+        console.log('  Uploads:     ' + uploadsLabel);
+        console.log('  Payments:    ' + pay.summary);
+        console.log('  Site:        http://localhost:' + PORT);
+        console.log('  Admin panel: http://localhost:' + PORT + A);
 
-      const pay = payments.describeConfig();
+        if (!pay.ready) {
+          console.warn('\n  [payments] Donations and purchases will be REFUSED until PAYPAL_CLIENT_ID');
+          console.warn('             and PAYPAL_CLIENT_SECRET are set. See PAYMENTS-SETUP.md');
+        } else if (!payments.hasWebhookId()) {
+          console.warn('\n  [payments] PAYPAL_WEBHOOK_ID is missing. Payments still work, but if a donor');
+          console.warn('             approves on PayPal and closes the tab, the money is never captured');
+          console.warn('             and the donation is lost. See PAYMENTS-SETUP.md.');
+        } else if (payments.isLiveMode() && !process.env.SITE_URL) {
+          console.warn('\n  [payments] Live PayPal credentials are in use but SITE_URL is not set.');
+          console.warn('             Return URLs are being guessed from request headers — set SITE_URL.');
+        }
 
-      console.log(`\n  Howl A/G Studio  v${APP_VERSION}`);
-      console.log(`  Storage:     ${storageLabel}`);
-      console.log(`  Uploads:     ${uploadsLabel}`);
-      console.log(`  Payments:    ${pay.summary}`);
-      console.log(`  Site:        http://localhost:${PORT}`);
-      console.log(`  Admin panel: http://localhost:${PORT}${A}`);
-
-      // Money is the one thing worth shouting about when it's misconfigured —
-      // a silent failure here means real donations quietly go missing.
-      if (!pay.ready) {
-        console.warn('\n  [payments] Donations and purchases will be REFUSED until PAYPAL_CLIENT_ID');
-        console.warn('             and PAYPAL_CLIENT_SECRET are set. See PAYMENTS-SETUP.md');
-      } else if (!payments.hasWebhookId()) {
-        console.warn('\n  [payments] PAYPAL_WEBHOOK_ID is missing. Payments still work, but if a donor');
-        console.warn('             approves on PayPal and closes the tab, the money is never captured');
-        console.warn('             and the donation is lost. See PAYMENTS-SETUP.md.');
-      } else if (payments.isLiveMode() && !process.env.SITE_URL) {
-        console.warn('\n  [payments] Live PayPal credentials are in use but SITE_URL is not set.');
-        console.warn('             Return URLs are being guessed from request headers — set SITE_URL.');
-      }
-
-      console.log(`\n  Keep this window open. Restart it after any code change.\n`);
-    });
-
-    // Hosts stop a process with SIGTERM. Flush pending writes before we go.
-    const shutdown = (sig) => () => {
-      console.log(`\n[server] ${sig} received — saving and shutting down.`);
-      server.close(() => {
-        db.close().then(() => process.exit(0)).catch(() => process.exit(0));
+        console.log('\n  Keep this window open. Restart it after any code change.\n');
       });
-      setTimeout(() => process.exit(0), 8000).unref();
-    };
-    process.on('SIGTERM', shutdown('SIGTERM'));
-    process.on('SIGINT', shutdown('SIGINT'));
+
+      const shutdown = (sig) => () => {
+        console.log('\n[server] ' + sig + ' received — saving and shutting down.');
+        server.close(() => {
+          db.close().then(() => process.exit(0)).catch(() => process.exit(0));
+        });
+        setTimeout(() => process.exit(0), 8000).unref();
+      };
+      process.on('SIGTERM', shutdown('SIGTERM'));
+      process.on('SIGINT', shutdown('SIGINT'));
+    }
   })
   .catch((err) => {
     console.error('\n[server] Could not start — storage failed to initialise.');
     console.error('        ' + err.message + '\n');
-    process.exit(1);
+    if (!process.env.VERCEL) process.exit(1);
   });
+
+module.exports = app;
