@@ -1,3 +1,13 @@
+---
+title: Howl AG Studio
+emoji: 🐺
+colorFrom: green
+colorTo: black
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Howl A/G Studio — website
 
 A full website for the studio, built as a small Node.js app so every piece is actually functional,
