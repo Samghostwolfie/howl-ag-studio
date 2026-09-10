@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 const express = require('express');
-const session = require('express-session');
+const session = require('cookie-session');
 const flash = require('connect-flash');
 const path = require('path');
 const fs = require('fs');
@@ -203,20 +203,33 @@ if (IS_PROD && !process.env.SESSION_SECRET) {
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
-    resave: false,
-    saveUninitialized: false,
     name: 'howl.sid',
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      httpOnly: true,
-      sameSite: 'lax',
-      // Over HTTPS the cookie must never be sent in the clear. Off locally, where
-      // there is no certificate, or the login would silently fail to stick.
-      secure: IS_PROD,
-    },
+    keys: [process.env.SESSION_SECRET || 'howl-studio-secret-key-2026', 'fallback-key-2026'],
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false, // Allows cookie through Vercel proxy headers seamlessly
   })
 );
+
+// Polyfill regenerate and destroy for serverless cookie session persistence
+app.use((req, res, next) => {
+  if (req.session) {
+    if (!req.session.regenerate) {
+      req.session.regenerate = (cb) => {
+        req.session = {};
+        if (cb) cb(null);
+      };
+    }
+    if (!req.session.destroy) {
+      req.session.destroy = (cb) => {
+        req.session = null;
+        if (cb) cb(null);
+      };
+    }
+  }
+  next();
+});
 app.use(flash());
 
 // make common data available to every view
@@ -231,7 +244,7 @@ app.use((req, res, next) => {
   // So the admin panel can report the real payment state instead of a badge
   // that always claims "Active".
   res.locals.paymentStatus = payments.describeConfig();
-  res.locals.currentUser = req.session.userId
+  res.locals.currentUser = (req.session && req.session.userId)
     ? db.read('admin', []).find((a) => a.id === req.session.userId)
     : null;
   res.locals.success = req.flash('success');
@@ -1380,7 +1393,7 @@ app.get('/games/:slug/buy/success', async (req, res) => {
 // =====================================================================
 
 app.get(`${A}/login`, (req, res) => {
-  if (req.session.userId) return res.redirect(`${A}`);
+  if (req.session && req.session.userId) return res.redirect(`${A}`);
   res.render('admin/login', { title: 'Admin Login', layout: false });
 });
 
@@ -1427,7 +1440,7 @@ app.post(`${A}/login`, (req, res) => {
 
   // Read this BEFORE regenerating — regenerate() throws the old session away,
   // returnTo included, so grabbing it afterwards would always come back empty.
-  const dest = req.session.returnTo || A;
+  const dest = (req.session && req.session.returnTo) || A;
 
   // A fresh session id on login stops a pre-set cookie being reused as yours.
   return req.session.regenerate((err) => {
@@ -1442,7 +1455,12 @@ app.post(`${A}/login`, (req, res) => {
 });
 
 app.post(`${A}/logout`, (req, res) => {
-  req.session.destroy(() => res.redirect(`${A}/login`));
+  if (req.session && req.session.destroy) {
+    req.session.destroy(() => res.redirect(`${A}/login`));
+  } else {
+    req.session = null;
+    res.redirect(`${A}/login`);
+  }
 });
 
 // =====================================================================
