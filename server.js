@@ -192,6 +192,9 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+if (process.env.VERCEL) {
+  app.use('/uploads', express.static('/tmp/uploads'));
+}
 app.use(express.static(path.join(__dirname, 'public')));
 
 const IS_PROD = process.env.NODE_ENV === 'production';
