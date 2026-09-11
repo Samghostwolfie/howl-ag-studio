@@ -235,6 +235,32 @@ app.use((req, res, next) => {
 });
 app.use(flash());
 
+// Storage initialization & serverless flush coordination
+let dbInitPromise = db.init().then((info) => {
+  ensureAdmin();
+  return info;
+}).catch((err) => {
+  console.error('[server] Storage initialization error:', err.message);
+});
+
+app.use(async (req, res, next) => {
+  if (dbInitPromise) {
+    await dbInitPromise;
+  }
+  if (process.env.VERCEL) {
+    const origEnd = res.end;
+    res.end = async function (...args) {
+      try {
+        await db.waitForPendingFlush();
+      } catch (e) {
+        console.error('[server] Flush on response end error:', e.message);
+      }
+      origEnd.apply(this, args);
+    };
+  }
+  next();
+});
+
 // make common data available to every view
 app.use((req, res, next) => {
   // Dynamic pages must never be served from the browser cache. Without this, a
@@ -2551,8 +2577,7 @@ app.use((err, req, res, next) => {
 });
 
 // Storage has to be ready before anything reads from it.
-// Storage has to be ready before anything reads from it.
-db.init()
+dbInitPromise
   .then((info) => {
     ensureAdmin();
 
