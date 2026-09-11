@@ -1662,7 +1662,11 @@ app.post(`${A}/games/:id/html-game/delete`, requireAuth, (req, res) => {
   const games = getGamesRaw();
   const game = games.find((g) => g.id === req.params.id);
   if (game) {
-    deleteHtmlGameFromVault(game.id);
+    try {
+      deleteHtmlGameFromVault(game.id);
+    } catch (err) {
+      console.warn('[html-game] Delete vault files caught:', err.message);
+    }
     delete game.htmlGame;
     game.updatedAt = new Date().toISOString();
     saveGames(games);
