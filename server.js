@@ -243,11 +243,32 @@ let dbInitPromise = db.init().then((info) => {
   console.error('[server] Storage initialization error:', err.message);
 });
 
+let lastSync = Date.now();
 app.use(async (req, res, next) => {
   if (dbInitPromise) {
-    await dbInitPromise;
+    try {
+      await dbInitPromise;
+    } catch (e) {
+      // Re-try initialization on subsequent request if earlier boot attempt failed
+      dbInitPromise = db.init().then((info) => {
+        ensureAdmin();
+        return info;
+      }).catch((err) => {
+        console.error('[server] Storage retry initialization error:', err.message);
+      });
+      await dbInitPromise;
+    }
   }
-  if (process.env.VERCEL) {
+
+  // If in database mode, refresh cache for admin routes or periodically (every 10s)
+  // so changes saved in another serverless container are immediately visible!
+  if (db.MODE !== 'files' && (req.path.startsWith(A) || Date.now() - lastSync > 10000)) {
+    await db.sync();
+    lastSync = Date.now();
+  }
+
+  // Ensure any writes made during the request are completely flushed to Postgres before the response ends
+  if (db.MODE !== 'files') {
     const origEnd = res.end;
     res.end = async function (...args) {
       try {
