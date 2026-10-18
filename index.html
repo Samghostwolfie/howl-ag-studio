@@ -47,6 +47,11 @@
     padding: 10px 14px; font-size: 14px; cursor: pointer; display: none;
   }
 
+  #motion {
+    position: fixed; left: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+    background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.25); border-radius: 999px;
+    padding: 10px 14px; font-size: 14px; pointer-events: none;
+  }
   .screen {
     position: fixed; inset: 0; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center;
@@ -87,6 +92,7 @@
   <span class="pill" id="handState">✋ looking for hand…</span>
   <span class="pill">🏆 <span id="best">0</span></span>
 </div>
+<span id="motion" class="hidden"></span>
 <button id="flip" type="button">🔄 Switch camera</button>
 
 <div id="startScreen" class="screen">
@@ -96,7 +102,7 @@
     <li>📷 Allow camera access when asked</li>
     <li>✋ Hold your hand up in front of the camera</li>
     <li>🧟 When a cube glows <b style="color:#ff6a6a">red</b> it's in reach — move your hand onto it to destroy it</li>
-    <li>📱 On a phone, turn around to find cubes coming from behind (follow the arrows)</li>
+    <li>📱 On a phone, some cubes come from the side: turn toward the arrows to find them</li>
     <li>☠️ If a cube reaches you, it's game over</li>
   </ul>
   <div class="row">
@@ -127,10 +133,10 @@ import * as THREE from 'three';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 // ---------- tuning ----------
-const SPAWN_DISTANCE = 14;     // how far away cubes appear (world units ≈ metres)
+const SPAWN_DISTANCE = 11;     // how far away cubes appear (world units ≈ metres)
 const REACH_DISTANCE = 4.5;    // cube must be this close before your hand can hit it
 const BITE_DISTANCE = 1.0;     // cube this close = it attacks you = game over
-const CUBE_SIZE = 0.9;
+const CUBE_SIZE = 1.0;
 const BASE_SPEED = 1.1;        // units / second
 const BASE_SPAWN_GAP = 2.6;    // seconds between spawns at the start
 const MAX_CUBES = 8;
@@ -341,10 +347,17 @@ function hitPoints(hands) {
 
 // ---------- cubes ----------
 function spawnCube() {
-  // With the gyro you can turn around, so cubes come from anywhere. Without it they come from the front.
-  const spread = useGyro() ? Math.PI : THREE.MathUtils.degToRad(28);
-  const yaw = (Math.random() * 2 - 1) * spread;
-  const pitch = THREE.MathUtils.degToRad((Math.random() * 2 - 1) * (useGyro() ? 15 : 10));
+  // Spawn around where you're looking now. A phone held upright only sees ~35° across,
+  // so most cubes land on screen; with the gyro some come from the side to make you turn.
+  const deg = THREE.MathUtils.degToRad;
+  const halfH = halfFovs().h, halfV = halfFovs().v;
+  _fwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  const facingYaw = Math.atan2(-_fwd.x, -_fwd.z);
+  const facingPitch = THREE.MathUtils.clamp(Math.asin(THREE.MathUtils.clamp(_fwd.y, -1, 1)), deg(-25), deg(25));
+  let spread = halfH * 0.6;
+  if (useGyro() && Math.random() < 0.35) spread = deg(75);
+  const yaw = facingYaw + (Math.random() * 2 - 1) * spread;
+  const pitch = facingPitch + (Math.random() * 2 - 1) * halfV * 0.35;
   const dir = new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
   const mat = new THREE.MeshStandardMaterial({ map: faceTex, emissive: 0x000000, roughness: 0.8 });
   const mesh = new THREE.Mesh(cubeGeo, mat);
@@ -382,6 +395,11 @@ function burst(pos) {
   }
 }
 
+function halfFovs() {
+  const v = THREE.MathUtils.degToRad(camera.fov / 2);
+  return { v, h: Math.atan(Math.tan(v) * camera.aspect) };
+}
+
 const _proj = new THREE.Vector3();
 const _right = new THREE.Vector3();
 function cubeOnScreen(mesh) {
@@ -404,7 +422,8 @@ function drawOffscreenArrows() {
     const behind = local.z > 0;
     const visible = !behind && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
     if (visible) continue;
-    let ang = Math.atan2(-local.y, local.x);
+    // Behind you: point straight left or right so the arrow says which way to turn.
+    const ang = behind ? (local.x >= 0 ? 0 : Math.PI) : Math.atan2(-local.y, local.x);
     const m = 34;
     const rx = W / 2 - m, ry = H / 2 - m;
     const cos = Math.cos(ang), sin = Math.sin(ang);
@@ -478,6 +497,7 @@ function loop(now) {
   const hs = $('handState');
   hs.textContent = hands.length ? '✋ hand locked' : '✋ looking for hand…';
   hs.classList.toggle('off', !hands.length);
+  $('motion').textContent = useGyro() ? '📱 Motion on' : '📱 Motion off';
 
   if (running) {
     elapsed += dt;
@@ -526,7 +546,8 @@ function loop(now) {
 
   renderer.render(scene, camera);
   drawHands(hands);
-  if (running) drawOffscreenArrows();
+  // Arrows only help if turning the phone moves the view.
+  if (running && useGyro()) drawOffscreenArrows();
   requestAnimationFrame(loop);
 }
 
@@ -551,6 +572,7 @@ async function begin() {
     $('startScreen').classList.add('hidden');
     $('hud').classList.remove('hidden');
     $('flip').style.display = 'block';
+    $('motion').classList.remove('hidden');
     resetGame();
     running = true;
   } catch (err) {
