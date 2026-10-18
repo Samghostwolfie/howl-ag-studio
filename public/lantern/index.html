@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Lantern Ring — Howl A/G Studio</title>
+<link rel="icon" href="/img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap">
+<style>
+  :root {
+    --bg: #030805;
+    --fg: #e4ffe9;
+    --emerald: #3dff7f;
+    --emerald-deep: #0d6b33;
+    --muted: #8fbf9b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  /* The camera feed is painted onto #bg every frame. Some Android phones draw a playing
+     <video> above everything else, so the element itself stays off screen. */
+  #video { position: fixed; left: 0; top: 0; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
+  #bg, #three, #overlay {
+    position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none;
+  }
+
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: center;
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+    pointer-events: none;
+  }
+  .pill {
+    background: rgba(0,0,0,.5); border: 1px solid rgba(61,255,127,.35);
+    padding: 7px 14px; border-radius: 999px; font-weight: 600; font-size: 15px;
+    text-shadow: 0 1px 4px #000;
+  }
+  .pill.charged { border-color: var(--emerald); box-shadow: 0 0 18px rgba(61,255,127,.6); color: var(--emerald); }
+
+  #flip {
+    position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+    background: rgba(0,0,0,.55); color: var(--fg);
+    border: 1px solid rgba(255,255,255,.25); border-radius: 999px;
+    padding: 10px 14px; font-size: 14px; cursor: pointer;
+  }
+
+  .screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 24px 16px; gap: 16px;
+    background: radial-gradient(ellipse at center, rgba(8,40,20,.95), rgba(0,0,0,.98));
+  }
+  .emblem {
+    width: 92px; height: 92px; border-radius: 50%;
+    border: 7px solid var(--emerald);
+    box-shadow: 0 0 28px rgba(61,255,127,.7), inset 0 0 22px rgba(61,255,127,.55);
+    display: grid; place-items: center;
+  }
+  .emblem::after {
+    content: ""; width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle, #b6ffcf, var(--emerald) 60%, var(--emerald-deep));
+    box-shadow: 0 0 20px var(--emerald);
+  }
+  .screen h1 {
+    margin: 0; font-family: "Chakra Petch", system-ui, sans-serif; font-weight: 700;
+    font-size: clamp(34px, 9vw, 60px); letter-spacing: 3px; text-transform: uppercase;
+    color: var(--emerald); text-shadow: 0 0 22px rgba(61,255,127,.55);
+  }
+  .screen ul { margin: 0; padding: 0; list-style: none; max-width: 460px; color: var(--muted); line-height: 1.75; }
+  .screen ul b { color: var(--fg); }
+  .screen button {
+    font: inherit; font-family: "Chakra Petch", system-ui, sans-serif; font-weight: 700; font-size: 18px;
+    letter-spacing: 1px; padding: 14px 30px; border-radius: 12px; border: 0; cursor: pointer;
+    background: var(--emerald); color: #02180a;
+    box-shadow: 0 0 26px rgba(61,255,127,.45);
+  }
+  .screen button:disabled { opacity: .5; cursor: wait; }
+  #status { color: var(--muted); font-size: 14px; min-height: 1.5em; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<video id="video" playsinline muted autoplay></video>
+<canvas id="bg"></canvas>
+<canvas id="three"></canvas>
+<canvas id="overlay"></canvas>
+
+<div id="hud" class="hidden"><span class="pill" id="hint">Show your right hand</span></div>
+<button id="flip" type="button" class="hidden">🔄 Switch camera</button>
+
+<div id="startScreen" class="screen">
+  <div class="emblem" aria-hidden="true"></div>
+  <h1>Lantern Ring</h1>
+  <ul>
+    <li>📷 Allow camera access when asked</li>
+    <li>✋ Hold up your <b>right hand</b>: the ring goes on your middle finger</li>
+    <li>✊ Make a <b>fist</b> to charge the ring</li>
+  </ul>
+  <button id="startBtn" type="button">Put on the ring</button>
+  <div id="status"></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+// ---------- ring size, in metres (MediaPipe's world landmarks are metric) ----------
+const FINGER_RADIUS = 0.0095;  // a middle finger is ~19 mm across
+const BAND_RADIUS = 0.0116;    // centre of the band, just outside the finger
+const BAND_TUBE = 0.0024;
+const BAND_WIDTH = 1.9;        // the band is stretched along the finger: ~9 mm wide, a chunky ring
+const RING_ALONG = 0.35;       // where on the finger: 0 = knuckle, 1 = middle joint
+const SCENE_DEPTH = 1;         // everything is drawn this far in front of the 3D camera
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+const bg = $('bg');
+const bctx = bg.getContext('2d');
+const overlay = $('overlay');
+const octx = overlay.getContext('2d');
+const statusEl = $('status');
+
+// ---------- state ----------
+let handLandmarker = null;
+let stream = null;
+let facingMode = 'user';       // selfie camera by default: you see your own hand like a mirror
+let mirrored = true;
+let lastVideoTime = -1;
+let lastHands = [];
+let glow = 0;                  // 0 = idle, 1 = fully charged
+let wasFist = false;
+
+// ---------- three.js ----------
+const renderer = new THREE.WebGLRenderer({ canvas: $('three'), alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10);
+scene.add(new THREE.HemisphereLight(0xeaffef, 0x0b2a14, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(0.5, 1, 1);
+scene.add(key);
+const ringLight = new THREE.PointLight(0x3dff7f, 0, 0.6, 2);
+scene.add(ringLight);
+
+function radialTexture(stops) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  for (const [at, col] of stops) grad.addColorStop(at, col);
+  g.fillStyle = grad; g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+// The ring is modelled in metres around its own axis (local Z = along the finger, local Y = back of the hand).
+const ring = new THREE.Group();
+const bandMat = new THREE.MeshStandardMaterial({ color: 0x1f8a46, metalness: 0.55, roughness: 0.28, emissive: 0x0b4a22, emissiveIntensity: 0.25 });
+const band = new THREE.Mesh(new THREE.TorusGeometry(BAND_RADIUS, BAND_TUBE, 18, 64).scale(1, 1, BAND_WIDTH), bandMat);
+ring.add(band);
+// Raised setting on the back of the finger, with a round emerald in it.
+const settingMat = new THREE.MeshStandardMaterial({ color: 0x135c2f, metalness: 0.7, roughness: 0.3 });
+const setting = new THREE.Mesh(new THREE.CylinderGeometry(0.0092, 0.0078, 0.0034, 40), settingMat);
+setting.position.y = BAND_RADIUS + BAND_TUBE * 0.7;
+ring.add(setting);
+const settingRim = new THREE.Mesh(new THREE.TorusGeometry(0.0084, 0.0011, 10, 48).rotateX(Math.PI / 2), bandMat);
+settingRim.position.y = setting.position.y + 0.0018;
+ring.add(settingRim);
+const gemMat = new THREE.MeshStandardMaterial({ color: 0x7dffab, metalness: 0.1, roughness: 0.15, emissive: 0x2bff6a, emissiveIntensity: 0.35, transparent: true, opacity: 0.95 });
+const gem = new THREE.Mesh(new THREE.SphereGeometry(0.0072, 32, 16).scale(1, 0.45, 1), gemMat);
+gem.position.y = setting.position.y + 0.0019;
+ring.add(gem);
+// Halo that blooms when the ring charges.
+const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: radialTexture([[0, 'rgba(200,255,215,1)'], [0.25, 'rgba(61,255,127,.75)'], [1, 'rgba(61,255,127,0)']]),
+  blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, opacity: 0,
+}));
+halo.position.y = gem.position.y;
+ring.add(halo);
+// Invisible finger: writes depth only, so the far half of the band disappears behind your finger.
+const finger = new THREE.Mesh(
+  new THREE.CylinderGeometry(FINGER_RADIUS, FINGER_RADIUS, 0.06, 24).rotateX(Math.PI / 2),
+  new THREE.MeshBasicMaterial({ colorWrite: false })
+);
+finger.renderOrder = -1;
+ring.add(finger);
+ring.visible = false;
+scene.add(ring);
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  const dpr = window.devicePixelRatio || 1;
+  for (const [cv, cx] of [[overlay, octx], [bg, bctx]]) {
+    cv.width = w * dpr; cv.height = h * dpr;
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- camera + hand tracking ----------
+async function startCamera() {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } });
+  } catch (err) {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+  }
+  const settings = stream.getVideoTracks()[0].getSettings();
+  if (settings.facingMode) facingMode = settings.facingMode;
+  // Desktop webcams often report no facingMode; they are selfie cams.
+  mirrored = facingMode !== 'environment';
+  video.srcObject = stream;
+  await video.play();
+  lastVideoTime = -1;
+}
+
+async function loadHandTracker() {
+  const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+  const opts = (delegate) => ({
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+      delegate,
+    },
+    runningMode: 'VIDEO',
+    numHands: 2,
+    minHandDetectionConfidence: 0.5,
+    minHandPresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  });
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(fileset, opts('GPU'));
+  } catch (e) {
+    handLandmarker = await HandLandmarker.createFromOptions(fileset, opts('CPU'));
+  }
+}
+
+// How the video frame is cropped to fill the screen (like object-fit: cover).
+function coverRect() {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const W = window.innerWidth, H = window.innerHeight;
+  const s = Math.max(W / vw, H / vh);
+  return { s, ox: (W - vw * s) / 2, oy: (H - vh * s) / 2, vw, vh, W, H };
+}
+
+function drawCameraFeed() {
+  if (video.readyState < 2 || !video.videoWidth) return;
+  const { s, ox, oy, vw, vh, W } = coverRect();
+  bctx.save();
+  if (mirrored) { bctx.translate(W, 0); bctx.scale(-1, 1); }
+  bctx.drawImage(video, ox, oy, vw * s, vh * s);
+  bctx.restore();
+}
+
+function landmarkToScreen(lm) {
+  const { s, ox, oy, vw, vh, W } = coverRect();
+  let x = ox + lm.x * vw * s;
+  const y = oy + lm.y * vh * s;
+  if (mirrored) x = W - x;
+  return { x, y };
+}
+
+// Each hand: { pts: 21 screen points, world: 21 metric points in screen-aligned axes
+// (x right, y up, z toward you), isRight: the person's own right hand }.
+function trackHands() {
+  if (!handLandmarker || video.readyState < 2) return [];
+  if (video.currentTime === lastVideoTime) return lastHands;
+  lastVideoTime = video.currentTime;
+  const res = handLandmarker.detectForVideo(video, performance.now());
+  lastHands = (res.landmarks || []).map((raw, i) => {
+    const label = res.handedness?.[i]?.[0]?.categoryName;
+    // MediaPipe labels hands as if the picture were a mirrored selfie. We feed it the camera's
+    // unflipped frames (from either camera), so its "Left" is your right hand.
+    const isRight = label === 'Left';
+    const sx = mirrored ? -1 : 1;
+    const world = (res.worldLandmarks?.[i] || raw).map((w) => new THREE.Vector3(sx * w.x, -w.y, -w.z));
+    return { pts: raw.map(landmarkToScreen), world, isRight };
+  });
+  return lastHands;
+}
+
+const FINGERS = [[5, 6, 8], [9, 10, 12], [13, 14, 16], [17, 18, 20]]; // knuckle, middle joint, tip
+// A fist: at least three fingertips curled back closer to the wrist than their middle joints.
+function isFist(world) {
+  let curled = 0;
+  for (const [, pip, tip] of FINGERS) {
+    if (world[tip].distanceTo(world[0]) < world[pip].distanceTo(world[0]) * 1.05) curled++;
+  }
+  return curled >= 3;
+}
+
+// Pixels per metre for this hand: the least foreshortened bone gives the truest scale.
+const SCALE_BONES = [[0, 5], [0, 17], [5, 17], [0, 9], [9, 10], [5, 9], [13, 17]];
+function pxPerMetre(hand) {
+  let best = 0;
+  for (const [a, b] of SCALE_BONES) {
+    const m = hand.world[a].distanceTo(hand.world[b]);
+    if (m < 0.005) continue;
+    const px = Math.hypot(hand.pts[a].x - hand.pts[b].x, hand.pts[a].y - hand.pts[b].y);
+    best = Math.max(best, px / m);
+  }
+  return best;
+}
+
+// ---------- placing the ring ----------
+const _target = new THREE.Vector3();
+const _targetQ = new THREE.Quaternion();
+const _basis = new THREE.Matrix4();
+const _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3();
+let targetScale = 0;
+let hasPose = false;
+
+function poseRingOn(hand) {
+  const { pts, world } = hand;
+  // Position: a third of the way from the middle knuckle to the middle joint, on screen,
+  // pushed to the 3D layer's depth.
+  const sx = pts[9].x + (pts[10].x - pts[9].x) * RING_ALONG;
+  const sy = pts[9].y + (pts[10].y - pts[9].y) * RING_ALONG;
+  _target.set((sx / window.innerWidth) * 2 - 1, -(sy / window.innerHeight) * 2 + 1, 0.5).unproject(camera);
+  _target.sub(camera.position).normalize();
+  _target.multiplyScalar(SCENE_DEPTH / -_target.z).add(camera.position);
+
+  // Size: metres -> pixels -> 3D units at that depth.
+  const unitsPerPx = 2 * SCENE_DEPTH * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / window.innerHeight;
+  targetScale = pxPerMetre(hand) * unitsPerPx;
+
+  // Rotation: ring axis along the finger bone, gem on the back of the hand.
+  _z.subVectors(world[10], world[9]).normalize();
+  // Back of a right hand faces along (pinky - wrist) x (index - wrist). Mirroring the
+  // picture flips that cross product, so flip it back.
+  _y.crossVectors(_x.subVectors(world[17], world[0]), new THREE.Vector3().subVectors(world[5], world[0]));
+  if (mirrored) _y.negate();
+  _y.addScaledVector(_z, -_y.dot(_z)).normalize();
+  _x.crossVectors(_y, _z).normalize();
+  _basis.makeBasis(_x, _y, _z);
+  _targetQ.setFromRotationMatrix(_basis);
+}
+
+// ---------- sound ----------
+let audio = null;
+function chargeSound() {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const t = audio.currentTime;
+    const o = audio.createOscillator(), o2 = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sawtooth'; o2.type = 'sine';
+    o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(440, t + 0.45);
+    o2.frequency.setValueAtTime(220, t); o2.frequency.exponentialRampToValueAtTime(880, t + 0.45);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.08); g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    o.connect(g); o2.connect(g); g.connect(audio.destination);
+    o.start(t); o2.start(t); o.stop(t + 0.7); o2.stop(t + 0.7);
+  } catch (e) { /* audio unavailable */ }
+}
+
+// ---------- frame loop ----------
+function drawAura(hand, strength) {
+  if (strength < 0.02) return;
+  const p = hand.pts;
+  const cx = (p[0].x + p[9].x) / 2, cy = (p[0].y + p[9].y) / 2;
+  const r = Math.hypot(p[0].x - p[9].x, p[0].y - p[9].y) * 1.7;
+  octx.save();
+  octx.globalCompositeOperation = 'lighter';
+  const g = octx.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+  g.addColorStop(0, `rgba(61,255,127,${0.22 * strength})`);
+  g.addColorStop(1, 'rgba(61,255,127,0)');
+  octx.fillStyle = g;
+  octx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  octx.restore();
+}
+
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  drawCameraFeed();
+  octx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+  const hands = trackHands();
+  const right = hands.find((h) => h.isRight);
+  const hint = $('hint');
+
+  if (right) {
+    poseRingOn(right);
+    if (!hasPose) {
+      ring.position.copy(_target); ring.quaternion.copy(_targetQ); ring.scale.setScalar(targetScale);
+      hasPose = true;
+    } else {
+      // Light smoothing takes out tracker jitter without making the ring lag behind your hand.
+      ring.position.lerp(_target, 0.6);
+      ring.quaternion.slerp(_targetQ, 0.5);
+      ring.scale.setScalar(ring.scale.x + (targetScale - ring.scale.x) * 0.5);
+    }
+    ring.visible = true;
+    const fist = isFist(right.world);
+    if (fist && !wasFist) chargeSound();
+    wasFist = fist;
+    glow += ((fist ? 1 : 0) - glow) * Math.min(1, dt * (fist ? 7 : 4));
+    hint.textContent = fist ? '⚡ Ring charged' : '✊ Make a fist to charge';
+  } else {
+    ring.visible = false;
+    hasPose = false;
+    wasFist = false;
+    glow += (0 - glow) * Math.min(1, dt * 4);
+    hint.textContent = hands.length ? 'That’s your left hand. Show your right hand' : 'Show your right hand';
+  }
+  hint.classList.toggle('charged', !!right && glow > 0.5);
+
+  // Glow: gem and band light up, a halo blooms, and the ring lights your hand.
+  const pulse = 1 + Math.sin(now / 110) * 0.12 * glow;
+  gemMat.emissiveIntensity = 0.35 + glow * 3.2 * pulse;
+  bandMat.emissiveIntensity = 0.25 + glow * 1.4;
+  halo.material.opacity = glow * 0.95;
+  halo.scale.setScalar((0.03 + glow * 0.06) * pulse);
+  ringLight.intensity = glow * 0.8;
+  ringLight.position.copy(ring.position);
+
+  if (right) drawAura(right, glow);
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+async function begin() {
+  const btn = $('startBtn');
+  btn.disabled = true;
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('This browser can\'t open the camera. Use a recent Chrome or Safari over https.');
+    }
+    statusEl.textContent = 'Starting camera…';
+    await startCamera();
+    if (!handLandmarker) {
+      statusEl.textContent = 'Loading hand tracking (first time can take a few seconds)…';
+      await loadHandTracker();
+    }
+    statusEl.textContent = '';
+    $('startScreen').classList.add('hidden');
+    $('hud').classList.remove('hidden');
+    $('flip').classList.remove('hidden');
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = '⚠️ ' + (err && err.name === 'NotAllowedError'
+      ? 'Camera permission was blocked. Allow it in your browser settings and try again.'
+      : (err.message || 'Something went wrong starting the camera.'));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('startBtn').addEventListener('click', begin);
+$('flip').addEventListener('click', async () => {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  try { await startCamera(); } catch (e) { console.error(e); }
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
