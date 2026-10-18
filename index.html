@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Hand Zombie — Howl A/G Studio</title>
+<link rel="icon" href="favicon.png">
+<style>
+  :root {
+    --bg: #07090a;
+    --fg: #e8f5e4;
+    --accent: #7dff6a;
+    --danger: #ff3b3b;
+    --muted: #8aa58a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  #video, #three, #overlay {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+  }
+  #video { object-fit: cover; }
+  #video.mirror { transform: scaleX(-1); }
+  #three, #overlay { pointer-events: none; }
+
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+    font-weight: 700; font-size: 18px; text-shadow: 0 2px 6px #000;
+    pointer-events: none;
+  }
+  #hud .pill {
+    background: rgba(0,0,0,.45); border: 1px solid rgba(125,255,106,.35);
+    padding: 6px 12px; border-radius: 999px;
+  }
+  #handState.off { color: var(--danger); border-color: rgba(255,59,59,.5); }
+
+  #flip {
+    position: fixed; right: 16px; bottom: max(16px, env(safe-area-inset-bottom));
+    background: rgba(0,0,0,.55); color: var(--fg);
+    border: 1px solid rgba(255,255,255,.25); border-radius: 999px;
+    padding: 10px 14px; font-size: 14px; cursor: pointer; display: none;
+  }
+
+  .screen {
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center;
+    padding: 24px 16px; gap: 14px;
+    background: radial-gradient(ellipse at center, rgba(10,30,12,.92), rgba(0,0,0,.96));
+  }
+  .screen h1 { margin: 0; font-size: clamp(32px, 9vw, 64px); letter-spacing: 1px; color: var(--accent); text-shadow: 0 0 24px rgba(125,255,106,.5); }
+  .screen h1.dead { color: var(--danger); text-shadow: 0 0 24px rgba(255,59,59,.6); }
+  .screen p { margin: 0; max-width: 520px; line-height: 1.5; color: var(--fg); }
+  .screen ul { margin: 0; padding: 0; list-style: none; max-width: 520px; color: var(--muted); line-height: 1.7; }
+  .screen .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .screen button {
+    font: inherit; font-weight: 700; font-size: 18px;
+    padding: 14px 28px; border-radius: 12px; border: 0; cursor: pointer;
+    background: var(--accent); color: #062006;
+    box-shadow: 0 0 24px rgba(125,255,106,.35);
+  }
+  .screen button.secondary { background: transparent; color: var(--fg); border: 1px solid rgba(255,255,255,.3); box-shadow: none; }
+  .screen button:disabled { opacity: .5; cursor: wait; }
+  #status { color: var(--muted); font-size: 14px; min-height: 1.5em; }
+  .hidden { display: none !important; }
+
+  #flash {
+    position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(255,0,0,.55));
+    opacity: 0; transition: opacity .15s;
+  }
+</style>
+</head>
+<body>
+<video id="video" playsinline muted autoplay></video>
+<canvas id="three"></canvas>
+<canvas id="overlay"></canvas>
+<div id="flash"></div>
+
+<div id="hud" class="hidden">
+  <span class="pill">💀 <span id="score">0</span></span>
+  <span class="pill" id="handState">✋ looking for hand…</span>
+  <span class="pill">🏆 <span id="best">0</span></span>
+</div>
+<button id="flip" type="button">🔄 Switch camera</button>
+
+<div id="startScreen" class="screen">
+  <h1>HAND ZOMBIE</h1>
+  <p>Zombie cubes are coming for you. Point your camera around, find them, and smash them with your hand before they reach you.</p>
+  <ul>
+    <li>📷 Allow camera access when asked</li>
+    <li>✋ Hold your hand up in front of the camera</li>
+    <li>🧟 When a cube glows <b style="color:#ff6a6a">red</b> it's in reach — move your hand onto it to destroy it</li>
+    <li>📱 On a phone, turn around to find cubes coming from behind (follow the arrows)</li>
+    <li>☠️ If a cube reaches you, it's game over</li>
+  </ul>
+  <div class="row">
+    <button id="startBtn" type="button">Turn on camera &amp; play</button>
+  </div>
+  <div id="status"></div>
+</div>
+
+<div id="overScreen" class="screen hidden">
+  <h1 class="dead">YOU GOT BITTEN</h1>
+  <p>You smashed <b id="finalScore">0</b> zombie cubes.</p>
+  <p id="newBest" class="hidden" style="color:var(--accent)">New best!</p>
+  <div class="row">
+    <button id="againBtn" type="button">Play again</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+// ---------- tuning ----------
+const SPAWN_DISTANCE = 14;     // how far away cubes appear (world units ≈ metres)
+const REACH_DISTANCE = 4.5;    // cube must be this close before your hand can hit it
+const BITE_DISTANCE = 1.0;     // cube this close = it attacks you = game over
+const CUBE_SIZE = 0.9;
+const BASE_SPEED = 1.1;        // units / second
+const BASE_SPAWN_GAP = 2.6;    // seconds between spawns at the start
+const MAX_CUBES = 8;
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const video = $('video');
+const threeCanvas = $('three');
+const overlay = $('overlay');
+const octx = overlay.getContext('2d');
+const statusEl = $('status');
+
+// ---------- state ----------
+let handLandmarker = null;
+let stream = null;
+let facingMode = 'environment';
+let mirrored = false;
+let running = false;
+let score = 0;
+let best = 0;
+try { best = Number(localStorage.getItem('handZombieBest')) || 0; } catch (e) { /* storage unavailable */ }
+$('best').textContent = best;
+
+let lastVideoTime = -1;
+let spawnTimer = 0;
+let elapsed = 0;
+
+// ---------- three.js setup ----------
+const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, alpha: true, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(65, 1, 0.05, 100);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(2, 5, 3);
+scene.add(sun);
+
+function zombieFaceTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#4f8f3a'; g.fillRect(0, 0, 128, 128);
+  // rotten blotches
+  for (let i = 0; i < 18; i++) {
+    g.fillStyle = `rgba(${30 + Math.random() * 40},${70 + Math.random() * 50},${20 + Math.random() * 30},.7)`;
+    g.beginPath(); g.arc(Math.random() * 128, Math.random() * 128, 4 + Math.random() * 10, 0, Math.PI * 2); g.fill();
+  }
+  // eyes
+  g.fillStyle = '#111'; g.fillRect(26, 34, 26, 20); g.fillRect(76, 34, 26, 20);
+  g.fillStyle = '#ff2a2a'; g.fillRect(34, 40, 10, 8); g.fillRect(84, 40, 10, 8);
+  // mouth + teeth
+  g.fillStyle = '#1a0606'; g.fillRect(28, 78, 72, 26);
+  g.fillStyle = '#e9e4c8';
+  for (let x = 30; x < 98; x += 12) { g.fillRect(x, 78, 8, 9); g.fillRect(x + 4, 95, 7, 9); }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const faceTex = zombieFaceTexture();
+const cubeGeo = new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE);
+const cubes = [];
+const particles = [];
+const particleGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  const dpr = window.devicePixelRatio || 1;
+  overlay.width = w * dpr; overlay.height = h * dpr;
+  octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- device orientation: lets cubes stay put in the room while you look around ----------
+const orient = { alpha: 0, beta: 90, gamma: 0, active: false };
+const yawOffset = new THREE.Quaternion();
+let yawCalibrated = false;
+window.addEventListener('deviceorientation', (e) => {
+  if (e.alpha == null) return;
+  orient.alpha = e.alpha; orient.beta = e.beta; orient.gamma = e.gamma;
+  orient.active = true;
+});
+
+const _euler = new THREE.Euler();
+const _q0 = new THREE.Quaternion();
+const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // camera looks out the back of the device
+const _zee = new THREE.Vector3(0, 0, 1);
+const _fwd = new THREE.Vector3();
+
+function useGyro() {
+  // Only anchor to the world with the rear camera: that's where the screen "looks through" the phone.
+  return orient.active && facingMode === 'environment';
+}
+
+function updateCameraFromOrientation() {
+  if (!useGyro()) { camera.quaternion.identity(); return; }
+  const d = THREE.MathUtils.degToRad;
+  const screenAngle = d((screen.orientation && screen.orientation.angle) || window.orientation || 0);
+  _euler.set(d(orient.beta), d(orient.alpha), -d(orient.gamma), 'YXZ');
+  camera.quaternion.setFromEuler(_euler);
+  camera.quaternion.multiply(_q1);
+  camera.quaternion.multiply(_q0.setFromAxisAngle(_zee, -screenAngle));
+  if (!yawCalibrated) {
+    // Make whatever way you're facing at the start "forward".
+    _fwd.set(0, 0, -1).applyQuaternion(camera.quaternion);
+    const yaw = Math.atan2(-_fwd.x, -_fwd.z);
+    yawOffset.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -yaw);
+    yawCalibrated = true;
+  }
+  camera.quaternion.premultiply(yawOffset);
+}
+
+// ---------- camera + hand tracking ----------
+async function startCamera() {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  const constraints = { audio: false, video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } } };
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (err) {
+    // Laptops usually have no rear camera; fall back to whatever exists.
+    if (facingMode === 'environment') {
+      facingMode = 'user';
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user' } });
+    } else {
+      throw err;
+    }
+  }
+  const settings = stream.getVideoTracks()[0].getSettings();
+  if (settings.facingMode) facingMode = settings.facingMode;
+  // Desktop webcams often report no facingMode; treat them as selfie cams.
+  mirrored = facingMode !== 'environment';
+  video.classList.toggle('mirror', mirrored);
+  video.srcObject = stream;
+  await video.play();
+  lastVideoTime = -1;
+}
+
+async function loadHandTracker() {
+  const fileset = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+  );
+  const opts = (delegate) => ({
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+      delegate,
+    },
+    runningMode: 'VIDEO',
+    numHands: 2,
+    minHandDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  });
+  try {
+    handLandmarker = await HandLandmarker.createFromOptions(fileset, opts('GPU'));
+  } catch (e) {
+    handLandmarker = await HandLandmarker.createFromOptions(fileset, opts('CPU'));
+  }
+}
+
+// Map a normalized landmark (0..1 of the video frame) to screen px, matching object-fit: cover.
+function landmarkToScreen(lm) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const W = window.innerWidth, H = window.innerHeight;
+  const s = Math.max(W / vw, H / vh);
+  const ox = (W - vw * s) / 2, oy = (H - vh * s) / 2;
+  let x = ox + lm.x * vw * s;
+  const y = oy + lm.y * vh * s;
+  if (mirrored) x = W - x;
+  return { x, y };
+}
+
+const HAND_LINKS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+  [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+function trackHands() {
+  if (!handLandmarker || video.readyState < 2) return [];
+  if (video.currentTime === lastVideoTime) return lastHands;
+  lastVideoTime = video.currentTime;
+  const res = handLandmarker.detectForVideo(video, performance.now());
+  lastHands = (res.landmarks || []).map((hand) => hand.map(landmarkToScreen));
+  return lastHands;
+}
+let lastHands = [];
+
+function drawHands(hands) {
+  for (const pts of hands) {
+    octx.strokeStyle = 'rgba(125,255,106,.85)';
+    octx.lineWidth = 3;
+    octx.beginPath();
+    for (const [a, b] of HAND_LINKS) { octx.moveTo(pts[a].x, pts[a].y); octx.lineTo(pts[b].x, pts[b].y); }
+    octx.stroke();
+    octx.fillStyle = '#eaffe5';
+    for (const p of pts) { octx.beginPath(); octx.arc(p.x, p.y, 4, 0, Math.PI * 2); octx.fill(); }
+  }
+}
+
+// The points we use to "hit" cubes: palm centre + fingertips.
+function hitPoints(hands) {
+  const out = [];
+  for (const pts of hands) {
+    const palm = [0, 5, 9, 13, 17].reduce((acc, i) => ({ x: acc.x + pts[i].x / 5, y: acc.y + pts[i].y / 5 }), { x: 0, y: 0 });
+    out.push(palm, pts[4], pts[8], pts[12], pts[16], pts[20]);
+  }
+  return out;
+}
+
+// ---------- cubes ----------
+function spawnCube() {
+  // With the gyro you can turn around, so cubes come from anywhere. Without it they come from the front.
+  const spread = useGyro() ? Math.PI : THREE.MathUtils.degToRad(28);
+  const yaw = (Math.random() * 2 - 1) * spread;
+  const pitch = THREE.MathUtils.degToRad((Math.random() * 2 - 1) * (useGyro() ? 15 : 10));
+  const dir = new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+  const mat = new THREE.MeshStandardMaterial({ map: faceTex, emissive: 0x000000, roughness: 0.8 });
+  const mesh = new THREE.Mesh(cubeGeo, mat);
+  mesh.position.copy(dir).multiplyScalar(SPAWN_DISTANCE);
+  mesh.lookAt(0, 0, 0);
+  scene.add(mesh);
+  cubes.push({
+    mesh,
+    speed: BASE_SPEED + Math.min(score * 0.06, 2.2) + Math.random() * 0.4,
+    wobble: Math.random() * Math.PI * 2,
+  });
+}
+
+function destroyCube(i) {
+  const c = cubes[i];
+  burst(c.mesh.position);
+  scene.remove(c.mesh);
+  c.mesh.material.dispose();
+  cubes.splice(i, 1);
+  score++;
+  $('score').textContent = score;
+  sfx('smash');
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+
+function burst(pos) {
+  for (let i = 0; i < 18; i++) {
+    const m = new THREE.Mesh(particleGeo, new THREE.MeshStandardMaterial({ color: i % 3 ? 0x5fbf3f : 0x8b1a1a, transparent: true }));
+    m.position.copy(pos);
+    scene.add(m);
+    particles.push({
+      mesh: m, life: 0.8,
+      vel: new THREE.Vector3((Math.random() - .5) * 6, Math.random() * 4, (Math.random() - .5) * 6),
+    });
+  }
+}
+
+const _proj = new THREE.Vector3();
+const _right = new THREE.Vector3();
+function cubeOnScreen(mesh) {
+  // Returns screen centre + radius in px, or null if the cube is behind the camera.
+  _proj.copy(mesh.position).project(camera);
+  if (_proj.z > 1) return null;
+  const W = window.innerWidth, H = window.innerHeight;
+  const cx = (_proj.x + 1) / 2 * W, cy = (1 - _proj.y) / 2 * H;
+  _right.set(1, 0, 0).applyQuaternion(camera.quaternion).multiplyScalar(CUBE_SIZE * 0.75).add(mesh.position).project(camera);
+  const ex = (_right.x + 1) / 2 * W, ey = (1 - _right.y) / 2 * H;
+  return { x: cx, y: cy, r: Math.hypot(ex - cx, ey - cy), ndcX: _proj.x, ndcY: _proj.y };
+}
+
+// Arrows at the screen edge pointing to cubes you can't see.
+function drawOffscreenArrows() {
+  const W = window.innerWidth, H = window.innerHeight;
+  for (const c of cubes) {
+    const local = c.mesh.position.clone().applyQuaternion(camera.quaternion.clone().invert());
+    const p = c.mesh.position.clone().project(camera);
+    const behind = local.z > 0;
+    const visible = !behind && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
+    if (visible) continue;
+    let ang = Math.atan2(-local.y, local.x);
+    const m = 34;
+    const rx = W / 2 - m, ry = H / 2 - m;
+    const cos = Math.cos(ang), sin = Math.sin(ang);
+    const t = Math.min(rx / Math.abs(cos || 1e-6), ry / Math.abs(sin || 1e-6));
+    const x = W / 2 + cos * t, y = H / 2 + sin * t;
+    const near = 1 - Math.min(1, c.mesh.position.length() / SPAWN_DISTANCE);
+    octx.save();
+    octx.translate(x, y); octx.rotate(ang);
+    octx.fillStyle = `rgba(255,${Math.round(200 - near * 200)},60,.9)`;
+    octx.beginPath(); octx.moveTo(18, 0); octx.lineTo(-10, -12); octx.lineTo(-4, 0); octx.lineTo(-10, 12); octx.closePath(); octx.fill();
+    octx.restore();
+  }
+}
+
+// ---------- sound ----------
+let audio = null;
+function sfx(kind) {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const t = audio.currentTime;
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.connect(g); g.connect(audio.destination);
+    if (kind === 'smash') {
+      o.type = 'square'; o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+      g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      o.start(t); o.stop(t + 0.2);
+    } else {
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(30, t + 0.8);
+      g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+      o.start(t); o.stop(t + 0.9);
+    }
+  } catch (e) { /* audio unavailable */ }
+}
+
+// ---------- game flow ----------
+function resetGame() {
+  for (const c of cubes) { scene.remove(c.mesh); c.mesh.material.dispose(); }
+  cubes.length = 0;
+  for (const p of particles) { scene.remove(p.mesh); p.mesh.material.dispose(); }
+  particles.length = 0;
+  score = 0; elapsed = 0; spawnTimer = 1.2;
+  $('score').textContent = 0;
+  yawCalibrated = false;
+}
+
+function gameOver() {
+  running = false;
+  sfx('bite');
+  if (navigator.vibrate) navigator.vibrate([200, 80, 300]);
+  $('flash').style.opacity = 1;
+  setTimeout(() => { $('flash').style.opacity = 0; }, 400);
+  const isBest = score > best;
+  if (isBest) {
+    best = score;
+    try { localStorage.setItem('handZombieBest', String(best)); } catch (e) { /* storage unavailable */ }
+    $('best').textContent = best;
+  }
+  $('finalScore').textContent = score;
+  $('newBest').classList.toggle('hidden', !isBest);
+  $('overScreen').classList.remove('hidden');
+}
+
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  updateCameraFromOrientation();
+
+  octx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  const hands = trackHands();
+  const hs = $('handState');
+  hs.textContent = hands.length ? '✋ hand locked' : '✋ looking for hand…';
+  hs.classList.toggle('off', !hands.length);
+
+  if (running) {
+    elapsed += dt;
+    spawnTimer -= dt;
+    const gap = Math.max(0.9, BASE_SPAWN_GAP - elapsed * 0.02);
+    if (spawnTimer <= 0 && cubes.length < MAX_CUBES) { spawnCube(); spawnTimer = gap; }
+
+    const points = hitPoints(hands);
+    for (let i = cubes.length - 1; i >= 0; i--) {
+      const c = cubes[i];
+      const m = c.mesh;
+      // Shamble toward the player with a little side-to-side wobble.
+      c.wobble += dt * 4;
+      const toPlayer = m.position.clone().negate().normalize();
+      m.position.addScaledVector(toPlayer, c.speed * dt);
+      m.position.y += Math.sin(c.wobble) * 0.01;
+      m.lookAt(0, 0, 0);
+      m.rotateZ(Math.sin(c.wobble) * 0.25);
+
+      const dist = m.position.length();
+      const inReach = dist < REACH_DISTANCE;
+      m.material.emissive.setHex(inReach ? 0x661010 : 0x000000);
+      m.scale.setScalar(inReach ? 1 + Math.sin(c.wobble * 2) * 0.06 : 1);
+
+      if (dist < BITE_DISTANCE) { gameOver(); break; }
+
+      if (inReach && points.length) {
+        const sc = cubeOnScreen(m);
+        if (sc) {
+          const hitR = Math.max(sc.r * 1.15, 40);
+          if (points.some((p) => Math.hypot(p.x - sc.x, p.y - sc.y) < hitR)) destroyCube(i);
+        }
+      }
+    }
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life -= dt;
+    p.vel.y -= 9 * dt;
+    p.mesh.position.addScaledVector(p.vel, dt);
+    p.mesh.rotation.x += dt * 8; p.mesh.rotation.y += dt * 6;
+    p.mesh.material.opacity = Math.max(0, p.life / 0.8);
+    if (p.life <= 0) { scene.remove(p.mesh); p.mesh.material.dispose(); particles.splice(i, 1); }
+  }
+
+  renderer.render(scene, camera);
+  drawHands(hands);
+  if (running) drawOffscreenArrows();
+  requestAnimationFrame(loop);
+}
+
+async function begin() {
+  const btn = $('startBtn');
+  btn.disabled = true;
+  try {
+    // iOS needs an explicit permission tap for motion sensors.
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try { await DeviceOrientationEvent.requestPermission(); } catch (e) { /* user declined: play without gyro */ }
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('This browser can\'t open the camera. Use a recent Chrome/Safari over https.');
+    }
+    statusEl.textContent = 'Starting camera…';
+    await startCamera();
+    if (!handLandmarker) {
+      statusEl.textContent = 'Loading hand tracking (first time can take a few seconds)…';
+      await loadHandTracker();
+    }
+    statusEl.textContent = '';
+    $('startScreen').classList.add('hidden');
+    $('hud').classList.remove('hidden');
+    $('flip').style.display = 'block';
+    resetGame();
+    running = true;
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = '⚠️ ' + (err && err.name === 'NotAllowedError'
+      ? 'Camera permission was blocked. Allow it in your browser settings and try again.'
+      : (err.message || 'Something went wrong starting the game.'));
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('startBtn').addEventListener('click', begin);
+$('againBtn').addEventListener('click', () => {
+  $('overScreen').classList.add('hidden');
+  resetGame();
+  running = true;
+});
+$('flip').addEventListener('click', async () => {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  try { await startCamera(); } catch (e) { console.error(e); }
+  yawCalibrated = false;
+});
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
