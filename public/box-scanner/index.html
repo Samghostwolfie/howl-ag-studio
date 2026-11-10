@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Box Scanner — Howl A/G Studio</title>
+<link rel="icon" href="/img/favicon.png">
+<style>
+  :root { --bg:#0b0d0f; --fg:#f2f4f5; --muted:#9aa4ab; --accent:#ffb020; --ok:#2ecc71; --bad:#ff5c5c; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; overflow:hidden; }
+  #video { position:fixed; inset:0; width:100%; height:100%; object-fit:cover; background:#000; }
+  #video.mirror { transform:scaleX(-1); }
+  #guide { position:fixed; left:50%; top:38%; width:min(86vw,520px); height:min(40vh,300px);
+    transform:translate(-50%,-50%); border:3px dashed rgba(255,176,32,.9); border-radius:16px;
+    box-shadow:0 0 0 100vmax rgba(0,0,0,.35); pointer-events:none; transition:border-color .2s; }
+  body.done #guide { border-style:solid; border-color:var(--ok); }
+  #hint { position:fixed; left:0; right:0; top:max(12px,env(safe-area-inset-top)); text-align:center;
+    font-size:14px; padding:0 16px; text-shadow:0 1px 6px #000; }
+
+  #panel { position:fixed; left:0; right:0; bottom:0; background:rgba(14,17,19,.94);
+    border-top:1px solid rgba(255,255,255,.12); border-radius:20px 20px 0 0;
+    padding:16px 18px max(16px,env(safe-area-inset-bottom)); }
+  #state { display:flex; align-items:center; gap:14px; }
+  #mark { flex:none; width:56px; height:56px; border-radius:50%; display:grid; place-items:center;
+    border:3px solid rgba(255,255,255,.25); color:transparent; font-size:34px; font-weight:800;
+    transition:all .25s; }
+  #mark.scanning { border-color:var(--accent); border-top-color:transparent; animation:spin 1s linear infinite; }
+  #mark.ok { background:var(--ok); border-color:var(--ok); color:#04200f; animation:none; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #lines { font-size:22px; font-weight:700; line-height:1.45; min-width:0; }
+  #lines .k { color:var(--muted); font-weight:500; }
+  #lines .na { color:var(--muted); font-weight:500; }
+  #sub { margin-top:10px; font-size:13px; color:var(--muted); min-height:1.3em; }
+  #sub b { color:var(--fg); }
+  #status { margin-top:6px; font-size:13px; color:var(--muted); min-height:1.3em; }
+  .row { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  button { font:inherit; font-weight:700; font-size:16px; padding:12px 18px; border-radius:12px; border:0;
+    cursor:pointer; background:var(--accent); color:#241800; flex:1 1 auto; }
+  button.sec { background:transparent; color:var(--fg); border:1px solid rgba(255,255,255,.3); }
+  button:disabled { opacity:.5; cursor:wait; }
+  details { margin-top:8px; font-size:12px; color:var(--muted); }
+  pre { white-space:pre-wrap; max-height:90px; overflow:auto; margin:6px 0 0; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<video id="video" playsinline muted autoplay></video>
+<div id="guide"></div>
+<div id="hint">Point the camera at the box stamp and size label</div>
+
+<div id="panel">
+  <div id="state">
+    <div id="mark">✓</div>
+    <div id="lines">
+      <div><span class="k">Box size:</span> <span id="vSize" class="na">----</span></div>
+      <div><span class="k">Wall type:</span> <span id="vWall" class="na">----</span></div>
+    </div>
+  </div>
+  <div id="sub"></div>
+  <div id="status">Tap “Start camera” to begin.</div>
+  <div class="row">
+    <button id="start">Start camera</button>
+    <button id="flip" class="sec hidden">Flip camera</button>
+    <button id="again" class="sec hidden">Scan next box</button>
+    <button id="upload" class="sec">Use a photo</button>
+  </div>
+  <details><summary>What the scanner read</summary><pre id="raw"></pre></details>
+  <input id="file" type="file" accept="image/*" class="hidden">
+</div>
+
+<script src="parser.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var video = $('video'), mark = $('mark'), vSize = $('vSize'), vWall = $('vWall'),
+      sub = $('sub'), statusEl = $('status'), raw = $('raw');
+  var stream = null, facing = 'environment', worker = null, scanning = false, finished = false;
+  var modes = ['3', '11', '6'], modeIdx = 0, votes = {}, rawLog = [];
+  var TESS_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+
+  function setStatus(t) { statusEl.textContent = t; }
+
+  function loadEngine() {
+    if (window.Tesseract) return Promise.resolve();
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = TESS_SRC; s.onload = res;
+      s.onerror = function () { rej(new Error('Could not load the scanner engine. Check your internet connection.')); };
+      document.head.appendChild(s);
+    });
+  }
+  function getWorker() {
+    if (worker) return Promise.resolve(worker);
+    setStatus('Loading scanner engine…');
+    return loadEngine().then(function () { return Tesseract.createWorker('eng'); })
+      .then(function (w) { worker = w; return w; });
+  }
+
+  // ---- voting: a value is trusted once two different reads agree --------------------------
+  function vote(field, value) {
+    if (value === null || value === undefined) return;
+    var key = typeof value === 'object' ? JSON.stringify(value) : String(value);
+    votes[field] = votes[field] || {};
+    var e = votes[field][key] || (votes[field][key] = { n: 0, value: value });
+    e.n++;
+  }
+  function best(field) {
+    var m = votes[field], top = null;
+    if (!m) return null;
+    Object.keys(m).forEach(function (k) { if (!top || m[k].n > top.n) top = m[k]; });
+    return top;
+  }
+  function resetScan() {
+    votes = {}; rawLog = []; finished = false; modeIdx = 0;
+    document.body.classList.remove('done');
+    mark.className = stream ? 'scanning' : '';
+    vSize.textContent = '----'; vWall.textContent = '----';
+    vSize.className = vWall.className = 'na';
+    sub.textContent = ''; raw.textContent = '';
+    $('again').classList.add('hidden');
+  }
+
+  var WALL = { single: 'Single wall', double: 'Double wall', triple: 'Triple wall' };
+  function render(force) {
+    var size = best('size'), wall = best('wall'), hint = null, inferred = false;
+    if (!wall) {
+      var e = best('ect'), b = best('burst');
+      hint = BoxParser.wallHint(e && e.value, b && b.value);
+    }
+    if (size) {
+      var s = size.value;
+      vSize.textContent = s.l + ' x ' + s.w + ' x ' + s.h + ' in';
+      vSize.className = '';
+    }
+    var wallVal = wall ? wall.value : null;
+    if (wall) { vWall.textContent = WALL[wall.value]; vWall.className = ''; }
+    else if (hint) { vWall.textContent = WALL[hint] + ' (estimated from strength rating)'; vWall.className = ''; inferred = true; }
+
+    var model = best('model'), ect = best('ect'), sl = best('sizeLimit'), gl = best('grossLimit');
+    var bits = [];
+    if (model) bits.push('Model <b>' + model.value + '</b>');
+    if (ect) bits.push('<b>' + ect.value + '</b> ECT');
+    if (sl) bits.push('size limit <b>' + sl.value + '</b> in');
+    if (gl) bits.push('max <b>' + gl.value + '</b> lb');
+    sub.innerHTML = bits.join(' · ');   // values are digits/regex-matched only, never raw OCR text
+
+    // Success = size confirmed by two reads, and wall type known (confirmed, or inferred from ECT).
+    var sizeOk = size && (size.n >= 2 || force);
+    var wallOk = (wall && (wall.n >= 2 || force)) || (inferred && sizeOk && ((best('ect') || {}).n >= 2 || force));
+    if (sizeOk && wallOk) finish(); else if (finished === false && stream) mark.className = 'scanning';
+  }
+
+  function finish() {
+    finished = true;
+    mark.className = 'ok';
+    document.body.classList.add('done');
+    setStatus('Scan complete.');
+    $('again').classList.remove('hidden');
+    if (navigator.vibrate) { try { navigator.vibrate(120); } catch (e) {} }
+    try { // small log for warehouse use: last 20 scans, this device only
+      var h = JSON.parse(localStorage.getItem('boxScans') || '[]');
+      h.unshift({ t: Date.now(), size: vSize.textContent, wall: vWall.textContent, model: (best('model') || {}).value || null });
+      localStorage.setItem('boxScans', JSON.stringify(h.slice(0, 20)));
+    } catch (e) {}
+  }
+
+  // ---- image prep: downscale, grayscale, stretch contrast (dark ink on brown cardboard) ----
+  function prep(source, w, h) {
+    var scale = Math.min(1, 1600 / Math.max(w, h));
+    var c = document.createElement('canvas');
+    c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+    var ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(source, 0, 0, c.width, c.height);
+    var img = ctx.getImageData(0, 0, c.width, c.height), d = img.data, hist = new Uint32Array(256), i, g;
+    for (i = 0; i < d.length; i += 4) { g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0; d[i] = g; hist[g]++; }
+    var total = c.width * c.height, lo = 0, hi = 255, acc = 0;
+    for (i = 0; i < 256; i++) { acc += hist[i]; if (acc > total * 0.02) { lo = i; break; } }
+    acc = 0;
+    for (i = 255; i >= 0; i--) { acc += hist[i]; if (acc > total * 0.02) { hi = i; break; } }
+    var span = Math.max(30, hi - lo);
+    for (i = 0; i < d.length; i += 4) {
+      g = Math.max(0, Math.min(255, ((d[i] - lo) * 255 / span) | 0));
+      d[i] = d[i + 1] = d[i + 2] = g;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  function readOnce(canvas) {
+    var mode = modes[modeIdx++ % modes.length];
+    return getWorker().then(function (w) {
+      return w.setParameters({ tessedit_pageseg_mode: mode }).then(function () { return w.recognize(canvas); });
+    }).then(function (r) {
+      var p = BoxParser.parse(r.data.text);
+      vote('size', p.size); vote('model', p.model); vote('wall', p.wall); vote('ect', p.ect);
+      vote('burst', p.burst); vote('sizeLimit', p.sizeLimit); vote('grossLimit', p.grossLimit);
+      rawLog.unshift(r.data.text.trim()); rawLog = rawLog.slice(0, 3);
+      raw.textContent = rawLog.join('\n------\n');
+    });
+  }
+
+  // ---- live loop ---------------------------------------------------------------------------
+  function loop() {
+    if (!stream || finished || scanning) return;
+    if (video.readyState < 2 || !video.videoWidth) { setTimeout(loop, 300); return; }
+    scanning = true; setStatus('Scanning… hold steady and keep the stamp in view.');
+    readOnce(prep(video, video.videoWidth, video.videoHeight)).then(function () {
+      render(false);
+    }).catch(function (e) { setStatus(e.message || 'Scan error'); })
+      .then(function () { scanning = false; if (!finished) setTimeout(loop, 150); });
+  }
+
+  function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('Camera not available here (needs https). Use “Use a photo” instead.'); return;
+    }
+    stopCamera();
+    $('start').disabled = true; setStatus('Starting camera…');
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false
+    }).then(function (s) {
+      stream = s; video.srcObject = s;
+      video.classList.toggle('mirror', facing === 'user');
+      $('start').classList.add('hidden'); $('flip').classList.remove('hidden');
+      resetScan(); mark.className = 'scanning';
+      getWorker().then(loop).catch(function (e) { setStatus(e.message); });
+    }).catch(function (e) {
+      $('start').disabled = false;
+      setStatus(e && e.name === 'NotAllowedError' ? 'Camera permission denied. Allow it in your browser settings.' : 'Could not start the camera.');
+    });
+  }
+  function stopCamera() {
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    stream = null;
+  }
+
+  $('start').onclick = startCamera;
+  $('flip').onclick = function () { facing = facing === 'environment' ? 'user' : 'environment'; startCamera(); };
+  $('again').onclick = function () { resetScan(); if (stream) loop(); else setStatus('Tap “Start camera” or use a photo.'); };
+  $('upload').onclick = function () { $('file').click(); };
+  $('file').onchange = function () {
+    var f = this.files && this.files[0]; this.value = '';
+    if (!f) return;
+    var url = URL.createObjectURL(f), im = new Image();
+    im.onload = function () {
+      stopCamera(); video.srcObject = null; $('flip').classList.add('hidden'); $('start').classList.remove('hidden'); $('start').disabled = false;
+      resetScan(); mark.className = 'scanning'; setStatus('Reading photo…');
+      var canvas = prep(im, im.naturalWidth, im.naturalHeight); URL.revokeObjectURL(url);
+      scanning = true;
+      var p = Promise.resolve();
+      modes.forEach(function () { p = p.then(function () { return readOnce(canvas); }); });
+      p.then(function () {
+        // every mode reads the same photo, so a single read of each is enough: trust it
+        render(true);
+        if (!finished) { mark.className = ''; setStatus('Could not read size and wall type. Try a closer, sharper photo of the stamp.'); }
+      }).catch(function (e) { setStatus(e.message || 'Scan error'); })
+        .then(function () { scanning = false; });
+    };
+    im.onerror = function () { setStatus('Could not open that image.'); };
+    im.src = url;
+  };
+  document.addEventListener('visibilitychange', function () { if (document.hidden) stopCamera(); });
+})();
+</script>
+</body>
+</html>
